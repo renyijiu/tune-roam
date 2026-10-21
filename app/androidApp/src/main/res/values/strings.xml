@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tune Roam</string>
+    <string name="tagline">Shortwave for the whole map.</string>
+    <string name="tab_home">Home</string>
+    <string name="tab_countries">Countries</string>
+    <string name="tab_favorites">Favorites</string>
+    <string name="search_hint">Search stations</string>
+    <string name="search">Search</string>
+    <string name="field_name">Name</string>
+    <string name="field_tag">Tag</string>
+    <string name="field_country">Country</string>
+    <string name="hide_broken">Hide stations that failed their last check</string>
+    <string name="popular_heading">Popular right now</string>
+    <string name="results_heading">Results</string>
+    <string name="stations_heading">Stations</string>
+    <string name="empty_popular">No popular stations came back. Pull the catalog again.</string>
+    <string name="empty_search">Nothing matched. Tags are exact; country names are exact too, or use a two-letter code.</string>
+    <string name="empty_favorites">No favorites yet. Tap the heart on a station and it stays on this phone.</string>
+    <string name="empty_countries">The country list is empty.</string>
+    <string name="empty_country">No stations listed for this country.</string>
+    <string name="loading">Listening for the catalog…</string>
+    <string name="error_network">The catalog didn\'t respond. Check the connection and try again.</string>
+    <string name="error_timeout">The catalog took too long to answer.</string>
+    <string name="error_server">The catalog server returned an error.</string>
+    <string name="retry">Try again</string>
+    <string name="stale_cache">Showing saved stations. The live catalog is unreachable.</string>
+    <string name="now_playing">Now playing</string>
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="favorite_add">Save station</string>
+    <string name="favorite_remove">Remove saved station</string>
+    <string name="health_ok">Last check succeeded</string>
+    <string name="health_down">Last check failed</string>
+    <string name="trying_alternate">Trying the other stream address.</string>
+    <string name="stream_unavailable">Couldn\'t connect. The stream may be blocked on this network.</string>
+    <string name="next_similar">Play a similar station</string>
+    <string name="no_similar">No similar station turned up.</string>
+    <string name="playback_channel">Playback</string>
+    <string name="playback_channel_description">Station playback controls</string>
+    <string name="back">Back</string>
+    <string name="country_count">%1$d stations</string>
+    <string name="using_original_url">Playing the station\'s original address.</string>
+</resources>

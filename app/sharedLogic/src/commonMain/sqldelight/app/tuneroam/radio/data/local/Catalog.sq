@@ -1,0 +1,164 @@
+CREATE TABLE favorite (
+    stationUuid TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    streamUrl TEXT NOT NULL,
+    resolvedUrl TEXT NOT NULL,
+    homepage TEXT NOT NULL,
+    favicon TEXT NOT NULL,
+    tags TEXT NOT NULL,
+    country TEXT NOT NULL,
+    countryCode TEXT NOT NULL,
+    languageName TEXT NOT NULL,
+    codec TEXT NOT NULL,
+    bitrate INTEGER NOT NULL,
+    hls INTEGER NOT NULL,
+    lastCheckOk INTEGER NOT NULL,
+    clickCount INTEGER NOT NULL,
+    addedAt INTEGER NOT NULL
+);
+
+selectAll:
+SELECT *
+FROM favorite
+ORDER BY addedAt DESC, stationUuid DESC;
+
+selectById:
+SELECT *
+FROM favorite
+WHERE stationUuid = :stationUuid;
+
+insertFavorite:
+INSERT OR REPLACE INTO favorite (
+    stationUuid,
+    name,
+    streamUrl,
+    resolvedUrl,
+    homepage,
+    favicon,
+    tags,
+    country,
+    countryCode,
+    languageName,
+    codec,
+    bitrate,
+    hls,
+    lastCheckOk,
+    clickCount,
+    addedAt
+) VALUES (
+    :stationUuid,
+    :name,
+    :streamUrl,
+    :resolvedUrl,
+    :homepage,
+    :favicon,
+    :tags,
+    :country,
+    :countryCode,
+    :languageName,
+    :codec,
+    :bitrate,
+    :hls,
+    :lastCheckOk,
+    :clickCount,
+    :addedAt
+);
+
+deleteById:
+DELETE FROM favorite
+WHERE stationUuid = :stationUuid;
+
+CREATE TABLE cachedStation (
+    bucket TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    stationUuid TEXT NOT NULL,
+    name TEXT NOT NULL,
+    streamUrl TEXT NOT NULL,
+    resolvedUrl TEXT NOT NULL,
+    homepage TEXT NOT NULL,
+    favicon TEXT NOT NULL,
+    tags TEXT NOT NULL,
+    country TEXT NOT NULL,
+    countryCode TEXT NOT NULL,
+    languageName TEXT NOT NULL,
+    codec TEXT NOT NULL,
+    bitrate INTEGER NOT NULL,
+    hls INTEGER NOT NULL,
+    lastCheckOk INTEGER NOT NULL,
+    clickCount INTEGER NOT NULL,
+    PRIMARY KEY (bucket, position)
+);
+
+deleteBucket:
+DELETE FROM cachedStation
+WHERE bucket = :bucket;
+
+insertCached:
+INSERT INTO cachedStation (
+    bucket,
+    position,
+    stationUuid,
+    name,
+    streamUrl,
+    resolvedUrl,
+    homepage,
+    favicon,
+    tags,
+    country,
+    countryCode,
+    languageName,
+    codec,
+    bitrate,
+    hls,
+    lastCheckOk,
+    clickCount
+) VALUES (
+    :bucket,
+    :position,
+    :stationUuid,
+    :name,
+    :streamUrl,
+    :resolvedUrl,
+    :homepage,
+    :favicon,
+    :tags,
+    :country,
+    :countryCode,
+    :languageName,
+    :codec,
+    :bitrate,
+    :hls,
+    :lastCheckOk,
+    :clickCount
+);
+
+selectBucket:
+SELECT *
+FROM cachedStation
+WHERE bucket = :bucket
+ORDER BY position ASC;
+
+CREATE TABLE cachedCountry (
+    name TEXT NOT NULL PRIMARY KEY,
+    isoCode TEXT NOT NULL,
+    stationCount INTEGER NOT NULL
+);
+
+deleteCountries:
+DELETE FROM cachedCountry;
+
+insertCountry:
+INSERT INTO cachedCountry (
+    name,
+    isoCode,
+    stationCount
+) VALUES (
+    :name,
+    :isoCode,
+    :stationCount
+);
+
+selectCountries:
+SELECT *
+FROM cachedCountry
+ORDER BY stationCount DESC;

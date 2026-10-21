@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">随声</string>
+    <string name="tagline">顺着电波，把地图听一遍。</string>
+    <string name="tab_home">首页</string>
+    <string name="tab_countries">国家</string>
+    <string name="tab_favorites">收藏</string>
+    <string name="search_hint">搜索电台</string>
+    <string name="search">搜索</string>
+    <string name="field_name">名称</string>
+    <string name="field_tag">标签</string>
+    <string name="field_country">国家</string>
+    <string name="hide_broken">隐藏最近检查失败的电台</string>
+    <string name="popular_heading">眼下热门</string>
+    <string name="results_heading">搜索结果</string>
+    <string name="stations_heading">电台</string>
+    <string name="empty_popular">没有取到热门电台。再拉一次目录试试。</string>
+    <string name="empty_search">没有匹配。标签和国家名要完全一致，国家也可以用两位代码。</string>
+    <string name="empty_favorites">还没有收藏。点电台旁边的心，它会留在这台手机上。</string>
+    <string name="empty_countries">国家列表是空的。</string>
+    <string name="empty_country">这个国家下面没有列出电台。</string>
+    <string name="loading">正在接通目录…</string>
+    <string name="error_network">目录没有应答。检查网络后再试。</string>
+    <string name="error_timeout">目录太久没有应答。</string>
+    <string name="error_server">目录服务器返回了错误。</string>
+    <string name="retry">重试</string>
+    <string name="stale_cache">正在显示已保存的电台。实时目录连不上。</string>
+    <string name="now_playing">正在播放</string>
+    <string name="play">播放</string>
+    <string name="pause">暂停</string>
+    <string name="favorite_add">收藏电台</string>
+    <string name="favorite_remove">取消收藏</string>
+    <string name="health_ok">最近检查正常</string>
+    <string name="health_down">最近检查失败</string>
+    <string name="trying_alternate">正在改用另一个流地址。</string>
+    <string name="stream_unavailable">连不上。这条流在当前网络可能被阻断。</string>
+    <string name="next_similar">播放一座相近的电台</string>
+    <string name="no_similar">没有找到相近的电台。</string>
+    <string name="playback_channel">播放</string>
+    <string name="playback_channel_description">电台播放控制</string>
+    <string name="back">返回</string>
+    <string name="country_count">%1$d 座电台</string>
+    <string name="using_original_url">正在使用电台原始地址。</string>
+</resources>
