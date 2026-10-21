@@ -25,6 +25,9 @@ interface RadioCatalog {
      */
     suspend fun random(limit: Int): LoadResult<List<Station>>
 
+    /** One station by uuid, for a shared link. Null when neither the live catalog nor the snapshot has it. */
+    suspend fun byUuid(stationUuid: String): Station?
+
     suspend fun registerClick(stationUuid: String)
 }
 
@@ -43,6 +46,9 @@ interface ReachabilityRepository {
 
 interface HistoryRepository {
     fun observe(): Flow<List<Station>>
+
+    /** The station that last actually played, for picking up where the listener left off. */
+    suspend fun latest(): Station?
 
     suspend fun record(station: Station)
 }

@@ -38,6 +38,9 @@
     <string name="no_similar">No similar station turned up.</string>
     <string name="next_station">Next station</string>
     <string name="previous_station">Previous station</string>
+    <string name="share_station">Share station</string>
+    <string name="opening_link">Opening the shared station…</string>
+    <string name="link_not_found">That shared station could not be found.</string>
     <string name="searching_similar">Looking for a similar station that answers…</string>
     <string name="playback_channel">Playback</string>
     <string name="playback_channel_description">Station playback controls</string>

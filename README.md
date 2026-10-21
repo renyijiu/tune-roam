@@ -18,6 +18,8 @@ Android 上的全球网络电台。先把 Android 做完，共享的 Kotlin 核�
 - 首页：热门电台，以及按名称、标签、国家搜索。默认隐藏最近检查失败的台（`lastcheckok`）。可以只看这台手机连通过的台，也可以对当前列表做一次短超时探测。
 - 国家：国家列表和电台数量。首页、漫游和国家页有一层 Compose Canvas 星点背景。
 - 下一站 / 上一站：下一站从实时目录随机抽一批（连不上时用随包快照），后台先探测好后面三座能连通的，按下去通常马上就有声音；在这台手机上失败过的台排到后面。上一站沿本次播放过的台往回走，再按下一站回到原处。播放页、迷你播放条、通知、锁屏、耳机和蓝牙 / 车机的上一首、下一首都是这两个动作。
+- 续听：打开应用时，迷你播放条停在上次真正播出过的台，点播放就接着听。系统的媒体控件、耳机或车机在应用没运行时按播放（包括重启手机之后），也会接着放这座台。
+- 分享：播放页右上角分享 `tuneroam://station/{stationuuid}` 链接。装了应用的手机点开就会播这座台；先查收藏，再查实时目录，最后查随包快照。
 - 正在播放：台名、图标、国家、标签、码率 / 编码、健康状态、播放暂停、收藏、睡眠定时。有 ICY 元数据时，界面、通知和锁屏都显示当前曲目，台标用电台 favicon。
 - 收藏和最近播放存在本机 SQLDelight 里。
 - 各页面底部有迷你播放条。
@@ -26,6 +28,13 @@ Android 上的全球网络电台。先把 Android 做完，共享的 Kotlin 核�
 - 流失败或在超时内起不来时，先试 `url_resolved`，再试 `url`。都失败后自动换一座相近、并且短探测能连通的台（最多三次），也可以手动再点一次。
 
 ## 更新记录
+
+### v5（续听与分享）
+
+- `HistoryRepository.latest()` 取最后一座真正播出的台。冷启动时 `PlaybackCoordinator.restore()` 把它显示出来，但不连接；点播放时才打开。已经有台在播时，restore 不生效。
+- 播放服务实现了 Media3 的 `onPlaybackResumption`，清单文件补了 `android.media.browse.MediaBrowserService`，系统媒体控件才能在应用不在运行时恢复播放。
+- 分享链接由共享的 `StationLink` 生成和解析（只接受合法的 uuid）。`RadioCatalog.byUuid()` 先查 `/json/stations/byuuid/{uuid}`，查不到再用随包快照。
+- 迷你播放条、播放页和打开链接共用同一个 `PlayerViewModel`（Activity 范围），所以一处给出的提示（打开链接、找相近台）另一处也能看到。
 
 ### v4（下一站）
 
@@ -132,6 +141,7 @@ sdk.dir=/path/to/android-sdk
 - 标签和国家搜索按 Radio Browser 的规则做精确匹配；名称是部分匹配。国家也可以填两位代码。漫游表盘用的是目录里的国家全名。
 - ICY 曲目名取决于电台是否在流里发送，而且有的台会把台名写进标题。没有 favicon 的台，通知里就没有封面。
 - 收藏、最近播放、连通记录和目录缓存只在本机，没有账号同步。
+- 分享链接用的是自定义 scheme。没装应用的人点开没有反应，有的聊天应用也不会把它识别成可点链接。要换成 https App Link，需要一个应用自己的域名；`StationLink.build` 可以改成 https 格式，旧链接照样能解析。
 - Android Auto / 车机浏览树没有在实车上验证。睡眠定时由播放服务按墙钟倒计时，服务进程被系统杀掉之后不会再响。
 
 界面字体是 [Outfit](https://fonts.google.com/specimen/Outfit) 和 [Newsreader](https://fonts.google.com/specimen/Newsreader)，许可证为 SIL Open Font License，文本在 `third_party/fonts/`。

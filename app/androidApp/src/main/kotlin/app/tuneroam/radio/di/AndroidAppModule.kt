@@ -34,5 +34,5 @@ val androidAppModule = module {
         )
     }
     viewModel { FavoritesViewModel(get(), get(), get()) }
-    viewModel { PlayerViewModel(get(), get(), get(), get(), get(), get()) }
+    viewModel { PlayerViewModel(get(), get(), get(), get(), get(), get(), get(), get()) }
 }

@@ -1,5 +1,6 @@
 package app.tuneroam.radio.ui.player
 
+import android.content.Intent
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.outlined.FavoriteBorder
@@ -42,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -116,13 +119,33 @@ fun NowPlayingScreen(
             .padding(bottom = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        val context = LocalContext.current
+        val shareTitle = stringResource(R.string.share_station)
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
             }
-            Text(stringResource(R.string.now_playing), style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.now_playing),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f),
+            )
+            if (station != null) {
+                IconButton(
+                    onClick = {
+                        val text = viewModel.shareText() ?: return@IconButton
+                        val send = Intent(Intent.ACTION_SEND)
+                            .setType("text/plain")
+                            .putExtra(Intent.EXTRA_TEXT, text)
+                        context.startActivity(Intent.createChooser(send, shareTitle))
+                    },
+                ) {
+                    Icon(Icons.Filled.Share, contentDescription = shareTitle)
+                }
+            }
         }
         if (station == null) {
+            LinkHint(hint)
             Text(
                 text = stringResource(R.string.empty_popular),
                 modifier = Modifier.padding(24.dp),
@@ -202,6 +225,7 @@ fun NowPlayingScreen(
                 modifier = Modifier.padding(top = 8.dp),
                 color = MaterialTheme.colorScheme.error,
             )
+            PlayerHint.OPENING_LINK, PlayerHint.LINK_NOT_FOUND -> LinkHint(hint)
             null -> Unit
         }
         Row(
@@ -304,6 +328,21 @@ private fun SleepRow(viewModel: PlayerViewModel) {
             }
         }
     }
+}
+
+@Composable
+private fun LinkHint(hint: PlayerHint?) {
+    val (text, color) = when (hint) {
+        PlayerHint.OPENING_LINK -> stringResource(R.string.opening_link) to MaterialTheme.colorScheme.secondary
+        PlayerHint.LINK_NOT_FOUND -> stringResource(R.string.link_not_found) to MaterialTheme.colorScheme.error
+        else -> return
+    }
+    Text(
+        text = text,
+        modifier = Modifier.padding(top = 8.dp, start = 24.dp, end = 24.dp),
+        color = color,
+        textAlign = TextAlign.Center,
+    )
 }
 
 @Composable

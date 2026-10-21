@@ -206,6 +206,12 @@ SELECT *
 FROM playHistory
 ORDER BY playedAt DESC;
 
+selectLatestHistory:
+SELECT *
+FROM playHistory
+ORDER BY playedAt DESC
+LIMIT 1;
+
 insertHistory:
 INSERT OR REPLACE INTO playHistory (
     stationUuid,

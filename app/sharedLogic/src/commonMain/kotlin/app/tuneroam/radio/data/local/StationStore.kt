@@ -184,6 +184,10 @@ class SqlHistoryRepository(
             .mapToList(Dispatchers.IO)
             .map { rows -> rows.mapNotNull { row -> row.payload.toStationOrNull() } }
 
+    override suspend fun latest(): Station? = withContext(Dispatchers.IO) {
+        database.catalogQueries.selectLatestHistory().executeAsOneOrNull()?.payload?.toStationOrNull()
+    }
+
     override suspend fun record(station: Station) {
         withContext(Dispatchers.IO) {
             database.transaction {

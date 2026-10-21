@@ -38,6 +38,9 @@
     <string name="no_similar">没有找到相近的电台。</string>
     <string name="next_station">下一站</string>
     <string name="previous_station">上一站</string>
+    <string name="share_station">分享电台</string>
+    <string name="opening_link">正在打开分享的电台…</string>
+    <string name="link_not_found">找不到分享的这座电台。</string>
     <string name="searching_similar">正在找一座能连上的相近电台…</string>
     <string name="playback_channel">播放</string>
     <string name="playback_channel_description">电台播放控制</string>

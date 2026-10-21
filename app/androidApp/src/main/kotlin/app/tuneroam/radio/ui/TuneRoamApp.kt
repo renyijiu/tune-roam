@@ -46,6 +46,8 @@ import app.tuneroam.radio.ui.player.MiniPlayerBar
 import app.tuneroam.radio.ui.player.NowPlayingScreen
 import app.tuneroam.radio.ui.roam.RoamScreen
 import app.tuneroam.radio.ui.theme.Starfield
+import app.tuneroam.radio.presentation.PlayerViewModel
+import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
 private object Routes {
@@ -59,9 +61,19 @@ private object Routes {
     fun country(name: String) = "country/${Uri.encode(name)}"
 }
 
+/**
+ * [pendingLink] is a station share link the activity received; it is opened once and
+ * then reported back through [onLinkHandled].
+ */
 @Composable
-fun TuneRoamApp() {
+fun TuneRoamApp(
+    pendingLink: String? = null,
+    onLinkHandled: () -> Unit = {},
+) {
     val navController = rememberNavController()
+    // One player ViewModel for the mini bar, the player screen, and links, so a hint
+    // raised in one place (opening a link, finding a similar station) shows in the other.
+    val player: PlayerViewModel = koinViewModel()
     val backStack by navController.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
     val coordinator = koinInject<PlaybackCoordinator>()
@@ -74,6 +86,12 @@ fun TuneRoamApp() {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
+    LaunchedEffect(pendingLink) {
+        val link = pendingLink ?: return@LaunchedEffect
+        player.openLink(link)
+        navController.navigate(Routes.PLAYER) { launchSingleTop = true }
+        onLinkHandled()
+    }
 
     val showStars = route == null || route == Routes.HOME || route == Routes.COUNTRIES || route == Routes.ROAM
     Scaffold(
@@ -81,7 +99,7 @@ fun TuneRoamApp() {
         bottomBar = {
             Column {
                 if (snapshot.station != null && route != Routes.PLAYER) {
-                    MiniPlayerBar(onOpen = { navController.navigate(Routes.PLAYER) })
+                    MiniPlayerBar(onOpen = { navController.navigate(Routes.PLAYER) }, viewModel = player)
                 }
                 if (route != Routes.PLAYER) {
                     NavigationBar {
@@ -127,7 +145,7 @@ fun TuneRoamApp() {
                 }
                 composable(Routes.FAVORITES) { FavoritesScreen() }
                 composable(Routes.PLAYER) {
-                    NowPlayingScreen(onBack = { navController.popBackStack() })
+                    NowPlayingScreen(onBack = { navController.popBackStack() }, viewModel = player)
                 }
             }
         }

@@ -291,6 +291,18 @@ class RadioLibraryService : MediaLibraryService() {
         }
     }
 
+    /**
+     * Item for a station a controller is about to set on the player. The coordinator
+     * picks the address and the watchdog starts here, as for [handle].
+     */
+    private fun prepareStation(station: Station): MediaItem {
+        skipJob?.cancel()
+        resetForNewStation(station)
+        val directive = coordinator.begin(station)
+        armWatchdog()
+        return mediaItemFor(station, (directive as? PlayDirective.Open)?.candidate)
+    }
+
     /** A station the listener chose (not an automatic hop): fresh hop budget, history, click count. */
     private fun resetForNewStation(station: Station) {
         autoHops = 0
@@ -403,15 +415,30 @@ class RadioLibraryService : MediaLibraryService() {
         ): ListenableFuture<MutableList<MediaItem>> {
             val source = mediaItems.firstOrNull() ?: return Futures.immediateFuture(mediaItems)
             val station = source.readStation() ?: return Futures.immediateFuture(mediaItems)
-            skipJob?.cancel()
-            resetForNewStation(station)
-            val directive = coordinator.begin(station)
-            val item = when (directive) {
-                is PlayDirective.Open -> mediaItemFor(station, directive.candidate)
-                else -> mediaItemFor(station, null)
+            return Futures.immediateFuture(mutableListOf(prepareStation(station)))
+        }
+
+        /**
+         * Play pressed on the system media controls or a headset while the app was not
+         * playing (also after a reboot): pick up the station on screen, else the last one
+         * that played.
+         */
+        override fun onPlaybackResumption(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            val future = SettableFuture.create<MediaSession.MediaItemsWithStartPosition>()
+            serviceScope.launch {
+                val station = coordinator.snapshot.value.station ?: runCatching { history.latest() }.getOrNull()
+                if (station == null) {
+                    future.setException(UnsupportedOperationException("Nothing has played yet."))
+                } else {
+                    future.set(
+                        MediaSession.MediaItemsWithStartPosition(listOf(prepareStation(station)), 0, C.TIME_UNSET),
+                    )
+                }
             }
-            armWatchdog()
-            return Futures.immediateFuture(mutableListOf(item))
+            return future
         }
 
         override fun onGetLibraryRoot(
