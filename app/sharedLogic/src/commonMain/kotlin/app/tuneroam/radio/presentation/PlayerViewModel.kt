@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import app.tuneroam.radio.domain.playback.PlaybackCommands
 import app.tuneroam.radio.domain.playback.PlaybackCoordinator
 import app.tuneroam.radio.domain.playback.PlaybackSnapshot
+import app.tuneroam.radio.domain.playback.RoamDeck
 import app.tuneroam.radio.domain.playback.SimilarStations
 import app.tuneroam.radio.domain.playback.SleepTimer
 import app.tuneroam.radio.domain.repository.FavoritesRepository
@@ -33,10 +34,13 @@ class PlayerViewModel(
     private val commands: PlaybackCommands,
     private val similarStations: SimilarStations,
     private val sleepTimer: SleepTimer,
+    deck: RoamDeck,
 ) : ViewModel() {
     val playback: StateFlow<PlaybackSnapshot> = coordinator.snapshot
 
     val sleepDeadlineMs: StateFlow<Long?> = sleepTimer.deadlineMs
+
+    val canGoBack: StateFlow<Boolean> = deck.canGoBack
 
     val isFavorite: StateFlow<Boolean> = combine(playback, favorites.observeIds()) { snap, saved ->
         snap.station?.stationUuid in saved
@@ -48,6 +52,10 @@ class PlayerViewModel(
     private var similarJob: Job? = null
 
     fun togglePlay() = commands.toggle()
+
+    fun next() = commands.next()
+
+    fun previous() = commands.previous()
 
     fun setSleep(minutes: Int?) {
         if (minutes == null) sleepTimer.cancel() else sleepTimer.arm(minutes)

@@ -36,6 +36,8 @@
     <string name="stream_unavailable">连不上。这条流在当前网络可能被阻断。</string>
     <string name="next_similar">播放一座相近的电台</string>
     <string name="no_similar">没有找到相近的电台。</string>
+    <string name="next_station">下一站</string>
+    <string name="previous_station">上一站</string>
     <string name="searching_similar">正在找一座能连上的相近电台…</string>
     <string name="playback_channel">播放</string>
     <string name="playback_channel_description">电台播放控制</string>

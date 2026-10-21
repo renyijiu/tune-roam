@@ -102,4 +102,12 @@ internal class RecordingCommands : PlaybackCommands {
     override fun toggle() = Unit
 
     override fun pause() = Unit
+
+    var nexts = 0
+
+    override fun next() {
+        nexts += 1
+    }
+
+    override fun previous() = Unit
 }

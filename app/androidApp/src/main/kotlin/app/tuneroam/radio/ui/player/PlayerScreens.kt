@@ -25,6 +25,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledIconButton
@@ -91,6 +93,9 @@ fun MiniPlayerBar(
             )
         }
         PlayPauseButton(playing = playback.phase == PlaybackPhase.PLAYING, onClick = viewModel::togglePlay)
+        IconButton(onClick = viewModel::next) {
+            Icon(Icons.Filled.SkipNext, contentDescription = stringResource(R.string.next_station))
+        }
     }
 }
 
@@ -102,6 +107,7 @@ fun NowPlayingScreen(
     val playback by viewModel.playback.collectAsStateWithLifecycle()
     val favorite by viewModel.isFavorite.collectAsStateWithLifecycle()
     val hint by viewModel.hint.collectAsStateWithLifecycle()
+    val canGoBack by viewModel.canGoBack.collectAsStateWithLifecycle()
     val station = playback.station
     Column(
         modifier = Modifier
@@ -201,7 +207,7 @@ fun NowPlayingScreen(
         Row(
             modifier = Modifier.padding(top = 22.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(18.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             IconButton(onClick = viewModel::toggleFavorite) {
                 Icon(
@@ -213,6 +219,13 @@ fun NowPlayingScreen(
                     modifier = Modifier.size(28.dp),
                 )
             }
+            IconButton(onClick = viewModel::previous, enabled = canGoBack) {
+                Icon(
+                    Icons.Filled.SkipPrevious,
+                    contentDescription = stringResource(R.string.previous_station),
+                    modifier = Modifier.size(32.dp),
+                )
+            }
             FilledIconButton(
                 onClick = viewModel::togglePlay,
                 modifier = Modifier.size(72.dp),
@@ -221,6 +234,13 @@ fun NowPlayingScreen(
                     imageVector = if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                     contentDescription = stringResource(if (playing) R.string.pause else R.string.play),
                     modifier = Modifier.size(36.dp),
+                )
+            }
+            IconButton(onClick = viewModel::next) {
+                Icon(
+                    Icons.Filled.SkipNext,
+                    contentDescription = stringResource(R.string.next_station),
+                    modifier = Modifier.size(32.dp),
                 )
             }
             Box(Modifier.size(48.dp))

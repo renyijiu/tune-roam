@@ -62,4 +62,16 @@ class MediaSessionCommands(
             controller.await().pause()
         }
     }
+
+    override fun next() {
+        scope.launch {
+            controller.await().seekToNext()
+        }
+    }
+
+    override fun previous() {
+        scope.launch {
+            controller.await().seekToPrevious()
+        }
+    }
 }
