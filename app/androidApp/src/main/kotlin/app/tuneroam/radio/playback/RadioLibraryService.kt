@@ -1,8 +1,13 @@
 package app.tuneroam.radio.playback
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.Build
 import androidx.annotation.OptIn
+import androidx.core.app.NotificationCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -102,7 +107,49 @@ class RadioLibraryService : MediaLibraryService() {
             .build()
     }
 
+    /**
+     * Play uses startForegroundService. Media3 posts the player notification only after
+     * ExoPlayer reports a state, and a slow start (or a stream that stays buffering) blows
+     * the foreground-service deadline and the system kills the process. Claim foreground
+     * before Media3's own notification replaces this one.
+     */
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        promoteToForeground()
+        return super.onStartCommand(intent, flags, startId)
+    }
+
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = librarySession
+
+    private fun promoteToForeground() {
+        val manager = getSystemService(NotificationManager::class.java)
+        if (manager.getNotificationChannel(CHANNEL_ID) == null) {
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    CHANNEL_ID,
+                    getString(R.string.playback_channel),
+                    NotificationManager.IMPORTANCE_LOW,
+                ).apply {
+                    description = getString(R.string.playback_channel_description)
+                },
+            )
+        }
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_wave)
+            .setContentTitle(getString(R.string.app_name))
+            .setContentText(getString(R.string.playback_channel_description))
+            .setOngoing(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .build()
+        if (Build.VERSION.SDK_INT >= 29) {
+            startForeground(
+                MEDIA_NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
+            )
+        } else {
+            startForeground(MEDIA_NOTIFICATION_ID, notification)
+        }
+    }
 
     override fun onDestroy() {
         watchJob?.cancel()
@@ -264,6 +311,9 @@ class RadioLibraryService : MediaLibraryService() {
 
     private companion object {
         const val CHANNEL_ID = "tuneroam_playback"
+
+        /** Same id Media3's DefaultMediaNotificationProvider uses, so the real player notification replaces this one. */
+        const val MEDIA_NOTIFICATION_ID = 1001
     }
 }
 

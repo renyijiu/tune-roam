@@ -77,4 +77,6 @@ dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.exoplayer.hls)
     implementation(libs.media3.session)
+
+    testImplementation(kotlin("test"))
 }

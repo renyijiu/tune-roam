@@ -1,5 +1,6 @@
 package app.tuneroam.radio.di
 
+import app.tuneroam.radio.domain.playback.PlaybackCommands
 import app.tuneroam.radio.playback.MediaSessionCommands
 import app.tuneroam.radio.presentation.CountriesViewModel
 import app.tuneroam.radio.presentation.CountryStationsViewModel
@@ -13,9 +14,13 @@ import org.koin.dsl.module
 /**
  * Shell bindings. ViewModel classes live in sharedLogic; this module is the
  * Android half of what a SwiftUI shell will do with its own factory helpers.
+ *
+ * [PlaybackCommands] must be the declared type. Shared ViewModels request that
+ * interface, and Koin does not treat the Media3 implementation as a substitute
+ * unless it is registered as one.
  */
 val androidAppModule = module {
-    single { MediaSessionCommands(androidContext()) }
+    single<PlaybackCommands> { MediaSessionCommands(androidContext()) }
     viewModel { HomeViewModel(get(), get(), get()) }
     viewModel { CountriesViewModel(get()) }
     viewModel { parameters ->
