@@ -36,6 +36,7 @@
     <string name="stream_unavailable">Couldn\'t connect. The stream may be blocked on this network.</string>
     <string name="next_similar">Play a similar station</string>
     <string name="no_similar">No similar station turned up.</string>
+    <string name="searching_similar">Looking for a similar station that answers…</string>
     <string name="playback_channel">Playback</string>
     <string name="playback_channel_description">Station playback controls</string>
     <string name="back">Back</string>

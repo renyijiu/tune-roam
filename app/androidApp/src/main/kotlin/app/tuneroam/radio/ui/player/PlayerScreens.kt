@@ -35,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,6 +55,7 @@ import app.tuneroam.radio.presentation.PlayerViewModel
 import app.tuneroam.radio.ui.components.HealthDot
 import app.tuneroam.radio.ui.components.StationMark
 import app.tuneroam.radio.ui.theme.Signal
+import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -183,12 +185,18 @@ fun NowPlayingScreen(
             )
         }
         Notice(playback)
-        if (hint == PlayerHint.NO_SIMILAR) {
-            Text(
+        when (hint) {
+            PlayerHint.SEARCHING -> Text(
+                text = stringResource(R.string.searching_similar),
+                modifier = Modifier.padding(top = 8.dp),
+                color = MaterialTheme.colorScheme.secondary,
+            )
+            PlayerHint.NO_SIMILAR -> Text(
                 text = stringResource(R.string.no_similar),
                 modifier = Modifier.padding(top = 8.dp),
                 color = MaterialTheme.colorScheme.error,
             )
+            null -> Unit
         }
         Row(
             modifier = Modifier.padding(top = 22.dp),
@@ -220,6 +228,7 @@ fun NowPlayingScreen(
         if (playback.notice == PlaybackNotice.UNAVAILABLE || playback.phase == PlaybackPhase.FAILED) {
             Button(
                 onClick = viewModel::playSimilar,
+                enabled = hint != PlayerHint.SEARCHING,
                 modifier = Modifier.padding(top = 18.dp),
                 shape = RoundedCornerShape(20.dp),
             ) {
@@ -234,8 +243,15 @@ fun NowPlayingScreen(
 @Composable
 private fun SleepRow(viewModel: PlayerViewModel) {
     val deadline by viewModel.sleepDeadlineMs.collectAsStateWithLifecycle()
+    // Re-read the clock every few seconds so the minutes count down on screen.
+    val now by produceState(System.currentTimeMillis(), deadline) {
+        while (deadline != null) {
+            value = System.currentTimeMillis()
+            delay(5_000)
+        }
+    }
     val remaining = deadline?.let { end ->
-        ((end - System.currentTimeMillis()) / 60_000L).toInt().coerceAtLeast(1)
+        ((end - now + 59_999L) / 60_000L).toInt().coerceAtLeast(1)
     }
     Text(
         text = if (remaining == null) {

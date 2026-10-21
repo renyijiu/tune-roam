@@ -1,5 +1,6 @@
 package app.tuneroam.radio.data.repository
 
+import app.tuneroam.radio.core.runCancellable
 import app.tuneroam.radio.data.local.CatalogCache
 import app.tuneroam.radio.data.remote.BundledCatalog
 import app.tuneroam.radio.data.remote.RadioBrowserClient
@@ -19,42 +20,46 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 
+/**
+ * Cache (or the bundled snapshot) first, then the live catalog.
+ *
+ * Popular, countries, and per-country lists are kept in SQL because they are a small,
+ * bounded set. Free-text searches are not: every query would leave its own bucket
+ * behind, and an offline search still has the bundled snapshot to fall back on.
+ */
 class OfflineFirstCatalog(
     private val client: RadioBrowserClient,
     private val cache: CatalogCache,
 ) : RadioCatalog {
     override fun popular(hideBroken: Boolean, limit: Int): Flow<LoadResult<List<Station>>> =
         cached(
-            bucket = "popular:$hideBroken:$limit",
-            read = { cache.readStations(it) },
-            write = { bucket, value -> cache.writeStations(bucket, value) },
+            read = { cache.readStations("popular:$hideBroken:$limit") },
+            write = { cache.writeStations("popular:$hideBroken:$limit", it) },
             bundled = { BundledCatalog.popular(limit, hideBroken) },
             fetch = { client.topClicked(limit, hideBroken) },
         )
 
     override fun search(query: CatalogQuery): Flow<LoadResult<List<Station>>> =
         cached(
-            bucket = "search:${query.field}:${query.hideBroken}:${query.limit}:${query.text.trim().lowercase()}:${query.country.orEmpty()}",
-            read = { cache.readStations(it) },
-            write = { bucket, value -> cache.writeStations(bucket, value) },
+            read = { emptyList() },
+            write = {},
             bundled = { BundledCatalog.search(query) },
             fetch = { client.search(query) },
         )
 
     override fun countries(): Flow<LoadResult<List<Country>>> =
         cached(
-            bucket = "countries",
-            read = { _ -> cache.readCountries() },
-            write = { _, value -> cache.writeCountries(value) },
+            read = { cache.readCountries() },
+            write = { cache.writeCountries(it) },
             bundled = { BundledCatalog.countries() },
             fetch = { client.countries() },
         )
 
-    override fun stationsInCountry(country: String, hideBroken: Boolean): Flow<LoadResult<List<Station>>> =
-        cached(
-            bucket = "country:$hideBroken:${country.trim().lowercase()}",
-            read = { cache.readStations(it) },
-            write = { bucket, value -> cache.writeStations(bucket, value) },
+    override fun stationsInCountry(country: String, hideBroken: Boolean): Flow<LoadResult<List<Station>>> {
+        val bucket = "country:$hideBroken:${country.trim().lowercase()}"
+        return cached(
+            read = { cache.readStations(bucket) },
+            write = { cache.writeStations(bucket, it) },
             bundled = { BundledCatalog.inCountry(country, hideBroken) },
             fetch = {
                 client.search(
@@ -62,50 +67,55 @@ class OfflineFirstCatalog(
                 )
             },
         )
-
-    override suspend fun similar(station: Station): LoadResult<List<Station>> = try {
-        val matches = client.search(similarQuery(station))
-            .filter { it.stationUuid != station.stationUuid }
-            .take(20)
-        if (matches.isNotEmpty()) {
-            LoadResult.Fresh(matches)
-        } else {
-            bundledSimilar(station)
-        }
-    } catch (error: Throwable) {
-        val bundled = BundledCatalog.similar(station)
-        if (bundled.isEmpty()) LoadResult.Failed(error.toReason()) else bundledSimilar(station)
     }
 
-    private fun bundledSimilar(station: Station): LoadResult<List<Station>> =
-        LoadResult.Cached(BundledCatalog.similar(station), stale = true, origin = CatalogOrigin.BUNDLED)
+    override suspend fun similar(station: Station): LoadResult<List<Station>> {
+        val live = runCancellable {
+            client.search(similarQuery(station)).filter { it.stationUuid != station.stationUuid }.take(20)
+        }
+        live.getOrNull()?.takeIf { it.isNotEmpty() }?.let { return LoadResult.Fresh(it) }
+        val bundled = BundledCatalog.similar(station)
+        val error = live.exceptionOrNull()
+        return if (bundled.isEmpty() && error != null) {
+            LoadResult.Failed(error.toReason())
+        } else {
+            LoadResult.Cached(bundled, stale = true, origin = CatalogOrigin.BUNDLED)
+        }
+    }
+
+    override suspend fun random(limit: Int): LoadResult<List<Station>> {
+        val live = runCancellable { client.random(limit) }
+        live.getOrNull()?.takeIf { it.isNotEmpty() }?.let { return LoadResult.Fresh(it) }
+        return LoadResult.Cached(BundledCatalog.random(limit), stale = true, origin = CatalogOrigin.BUNDLED)
+    }
 
     override suspend fun registerClick(stationUuid: String) {
         client.registerClick(stationUuid)
     }
-
-    override fun bundled(): List<Station> = BundledCatalog.all()
 }
 
 private inline fun <T> cached(
-    bucket: String,
-    crossinline read: (String) -> List<T>,
-    crossinline write: (String, List<T>) -> Unit,
+    crossinline read: () -> List<T>,
+    crossinline write: (List<T>) -> Unit,
     crossinline bundled: () -> List<T>,
     crossinline fetch: suspend () -> List<T>,
 ): Flow<LoadResult<List<T>>> = flow {
-    val cached = read(bucket)
+    val cached = read()
     val seed = cached.ifEmpty { bundled() }
     val origin = if (cached.isNotEmpty()) CatalogOrigin.CACHE else CatalogOrigin.BUNDLED
     if (seed.isNotEmpty()) emit(LoadResult.Cached(seed, stale = false, origin = origin))
-    try {
-        val fresh = fetch()
-        write(bucket, fresh)
-        emit(LoadResult.Fresh(fresh))
-    } catch (error: Throwable) {
-        if (seed.isEmpty()) emit(LoadResult.Failed(error.toReason()))
-        else emit(LoadResult.Cached(seed, stale = true, origin = origin))
-    }
+    runCancellable { fetch() }
+        .onSuccess { fresh ->
+            write(fresh)
+            emit(LoadResult.Fresh(fresh))
+        }
+        .onFailure { error ->
+            if (seed.isEmpty()) {
+                emit(LoadResult.Failed(error.toReason()))
+            } else {
+                emit(LoadResult.Cached(seed, stale = true, origin = origin))
+            }
+        }
 }.flowOn(Dispatchers.IO)
 
 private fun Throwable.toReason(): FailureReason = when (this) {

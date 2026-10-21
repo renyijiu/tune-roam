@@ -1,6 +1,7 @@
 package app.tuneroam.radio.data.local
 
 import app.tuneroam.radio.core.RadioJson
+import app.tuneroam.radio.core.epochMillis
 import app.tuneroam.radio.data.remote.MirrorMemory
 import app.tuneroam.radio.domain.catalog.ReachScore
 import app.tuneroam.radio.domain.model.Country
@@ -70,6 +71,7 @@ class CatalogCache(
 
 class SqlFavoritesRepository(
     private val database: TuneRoamDatabase,
+    private val clock: () -> Long = ::epochMillis,
 ) : FavoritesRepository {
     override fun observe(): Flow<List<Station>> =
         database.catalogQueries.selectAll()
@@ -88,7 +90,7 @@ class SqlFavoritesRepository(
     override suspend fun toggle(station: Station): Boolean = withContext(Dispatchers.IO) {
         val existing = database.catalogQueries.selectById(station.stationUuid).executeAsOneOrNull()
         if (existing == null) {
-            insert(station, addedAt = System.currentTimeMillis())
+            insert(station, addedAt = clock())
             true
         } else {
             database.catalogQueries.deleteById(station.stationUuid)
@@ -126,6 +128,7 @@ class SqlFavoritesRepository(
 
 class SqlMirrorMemory(
     private val database: TuneRoamDatabase,
+    private val clock: () -> Long = ::epochMillis,
 ) : MirrorMemory {
     override fun read(): String? = database.catalogQueries.selectMirror().executeAsOneOrNull()?.host
 
@@ -133,13 +136,14 @@ class SqlMirrorMemory(
         database.catalogQueries.upsertMirror(
             host = host,
             latencyMs = latencyMs,
-            checkedAt = System.currentTimeMillis(),
+            checkedAt = clock(),
         )
     }
 }
 
 class SqlReachabilityRepository(
     private val database: TuneRoamDatabase,
+    private val clock: () -> Long = ::epochMillis,
 ) : ReachabilityRepository {
     override fun observe(): Flow<Map<String, ReachScore>> =
         database.catalogQueries.selectReachability()
@@ -153,23 +157,26 @@ class SqlReachabilityRepository(
 
     override suspend fun note(stationUuid: String, ok: Boolean) {
         withContext(Dispatchers.IO) {
-            val existing = database.catalogQueries.selectReachability().executeAsList()
-                .firstOrNull { it.stationUuid == stationUuid }
-            val successes = (existing?.successes ?: 0L) + if (ok) 1L else 0L
-            val failures = (existing?.failures ?: 0L) + if (ok) 0L else 1L
-            database.catalogQueries.upsertReachability(
-                stationUuid = stationUuid,
-                successes = successes,
-                failures = failures,
-                lastOk = if (ok) 1L else 0L,
-                checkedAt = System.currentTimeMillis(),
-            )
+            // Probes and playback can note the same station at once; keep the counters whole.
+            database.transaction {
+                val existing = database.catalogQueries.selectReachabilityById(stationUuid).executeAsOneOrNull()
+                val successes = (existing?.successes ?: 0L) + if (ok) 1L else 0L
+                val failures = (existing?.failures ?: 0L) + if (ok) 0L else 1L
+                database.catalogQueries.upsertReachability(
+                    stationUuid = stationUuid,
+                    successes = successes,
+                    failures = failures,
+                    lastOk = if (ok) 1L else 0L,
+                    checkedAt = clock(),
+                )
+            }
         }
     }
 }
 
 class SqlHistoryRepository(
     private val database: TuneRoamDatabase,
+    private val clock: () -> Long = ::epochMillis,
 ) : HistoryRepository {
     override fun observe(): Flow<List<Station>> =
         database.catalogQueries.selectHistory()
@@ -183,7 +190,7 @@ class SqlHistoryRepository(
                 database.catalogQueries.insertHistory(
                     stationUuid = station.stationUuid,
                     payload = RadioJson.encodeToString(station),
-                    playedAt = System.currentTimeMillis(),
+                    playedAt = clock(),
                 )
                 database.catalogQueries.trimHistory()
             }

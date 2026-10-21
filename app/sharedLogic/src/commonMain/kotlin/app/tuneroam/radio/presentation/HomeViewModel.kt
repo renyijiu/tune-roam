@@ -12,15 +12,17 @@ import app.tuneroam.radio.domain.model.SearchField
 import app.tuneroam.radio.domain.model.Station
 import app.tuneroam.radio.domain.playback.PlaybackCommands
 import app.tuneroam.radio.domain.repository.FavoritesRepository
+import app.tuneroam.radio.domain.repository.observeIds
 import app.tuneroam.radio.domain.repository.RadioCatalog
 import app.tuneroam.radio.domain.repository.ReachabilityRepository
 import app.tuneroam.radio.domain.repository.StationConnectivity
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -52,8 +54,7 @@ class HomeViewModel(
         current.copy(stations = applyChinaFilter(current.stations, reach, current.chinaOnly))
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
-    val favoriteIds: StateFlow<Set<String>> = favorites.observe()
-        .map { stations -> stations.map { it.stationUuid }.toSet() }
+    val favoriteIds: StateFlow<Set<String>> = favorites.observeIds()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
     private var loadJob: Job? = null
@@ -76,10 +77,10 @@ class HomeViewModel(
         if (targets.isEmpty()) return
         viewModelScope.launch {
             _state.update { it.copy(probing = true) }
-            for (station in targets) {
-                val ok = connectivity.probe(station)
-                reachability.note(station.stationUuid, ok)
-            }
+            // In parallel: one dead stream costs its full timeout, eight in a row felt stuck.
+            targets.map { station ->
+                async { reachability.note(station.stationUuid, connectivity.probe(station)) }
+            }.awaitAll()
             _state.update { it.copy(probing = false) }
         }
     }

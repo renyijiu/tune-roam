@@ -32,6 +32,7 @@ private enum class Shelf { SAVED, RECENT }
 fun FavoritesScreen(viewModel: FavoritesViewModel = koinViewModel()) {
     val saved by viewModel.stations.collectAsStateWithLifecycle()
     val recent by viewModel.recent.collectAsStateWithLifecycle()
+    val savedIds by viewModel.savedIds.collectAsStateWithLifecycle()
     var shelf by rememberSaveable { mutableStateOf(Shelf.SAVED) }
     val stations = if (shelf == Shelf.SAVED) saved else recent
     LazyColumn(
@@ -75,7 +76,7 @@ fun FavoritesScreen(viewModel: FavoritesViewModel = koinViewModel()) {
         items(stations, key = { it.stationUuid }) { station ->
             StationRow(
                 station = station,
-                favorite = shelf == Shelf.SAVED || station.stationUuid in saved.map { it.stationUuid },
+                favorite = station.stationUuid in savedIds,
                 onPlay = { viewModel.play(station) },
                 onToggleFavorite = {
                     if (shelf == Shelf.SAVED) viewModel.remove(station) else viewModel.toggle(station)

@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
@@ -48,9 +49,9 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun RoamScreen(viewModel: RoamViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val chinese = java.util.Locale.getDefault().language.startsWith("zh")
-    var rotation by remember { mutableFloatStateOf(WorldDial.rotationFor(WorldDial.indexOfCode("CN"))) }
-    var appliedIndex by remember { mutableIntStateOf(WorldDial.indexOfCode("CN")) }
+    val chinese = LocalConfiguration.current.locales[0].language.startsWith("zh")
+    var rotation by remember { mutableFloatStateOf(WorldDial.rotationFor(state.index)) }
+    var appliedIndex by remember { mutableIntStateOf(state.index) }
     LaunchedEffect(state.index) {
         if (state.index != appliedIndex) {
             rotation = WorldDial.rotationFor(state.index)
@@ -113,6 +114,8 @@ fun RoamScreen(viewModel: RoamViewModel = koinViewModel()) {
             textAlign = TextAlign.Center,
         )
         val station = state.station?.takeIf { state.index == index }
+        // A shuffle can land outside the dial's countries; say where it actually is.
+        val offDial = station?.takeIf { !it.countryCode.equals(stop.isoCode, ignoreCase = true) }?.country
         Text(
             text = when {
                 state.loading && station == null -> stringResource(R.string.roam_loading)
@@ -127,6 +130,13 @@ fun RoamScreen(viewModel: RoamViewModel = koinViewModel()) {
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
+        if (!offDial.isNullOrBlank()) {
+            Text(
+                text = offDial,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
