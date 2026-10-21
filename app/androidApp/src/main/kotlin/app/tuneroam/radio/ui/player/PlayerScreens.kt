@@ -10,6 +10,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -26,6 +28,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -223,6 +226,47 @@ fun NowPlayingScreen(
                 Text(stringResource(R.string.next_similar))
             }
         }
+        SleepRow(viewModel)
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SleepRow(viewModel: PlayerViewModel) {
+    val deadline by viewModel.sleepDeadlineMs.collectAsStateWithLifecycle()
+    val remaining = deadline?.let { end ->
+        ((end - System.currentTimeMillis()) / 60_000L).toInt().coerceAtLeast(1)
+    }
+    Text(
+        text = if (remaining == null) {
+            stringResource(R.string.sleep_heading)
+        } else {
+            stringResource(R.string.sleep_remaining, remaining)
+        },
+        modifier = Modifier.padding(top = 22.dp),
+        style = MaterialTheme.typography.titleMedium,
+    )
+    FlowRow(
+        modifier = Modifier.padding(top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        listOf(
+            null to R.string.sleep_off,
+            15 to R.string.sleep_15,
+            30 to R.string.sleep_30,
+            60 to R.string.sleep_60,
+        ).forEach { (minutes, label) ->
+            OutlinedButton(
+                onClick = { viewModel.setSleep(minutes) },
+                shape = RoundedCornerShape(16.dp),
+            ) {
+                Text(
+                    text = stringResource(label),
+                    color = if (minutes == null && deadline == null) Signal else MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
     }
 }
 
@@ -231,6 +275,7 @@ private fun Notice(playback: PlaybackSnapshot) {
     val text = when (playback.notice) {
         PlaybackNotice.TRYING_ALTERNATE -> stringResource(R.string.trying_alternate)
         PlaybackNotice.UNAVAILABLE -> stringResource(R.string.stream_unavailable)
+        PlaybackNotice.NEXT_SIMILAR -> stringResource(R.string.next_similar_auto)
         PlaybackNotice.NONE -> if (playback.activeKind == StreamUrlKind.ORIGINAL && playback.phase == PlaybackPhase.PLAYING) {
             stringResource(R.string.using_original_url)
         } else {

@@ -89,8 +89,18 @@ enum class FailureReason {
     SERVER,
 }
 
+enum class CatalogOrigin {
+    LIVE,
+    CACHE,
+    BUNDLED,
+}
+
 sealed interface LoadResult<out T> {
     data class Fresh<T>(val value: T) : LoadResult<T>
-    data class Cached<T>(val value: T, val stale: Boolean) : LoadResult<T>
+    data class Cached<T>(
+        val value: T,
+        val stale: Boolean,
+        val origin: CatalogOrigin = CatalogOrigin.CACHE,
+    ) : LoadResult<T>
     data class Failed(val reason: FailureReason) : LoadResult<Nothing>
 }

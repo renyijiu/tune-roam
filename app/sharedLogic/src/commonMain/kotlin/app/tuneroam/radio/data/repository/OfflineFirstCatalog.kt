@@ -1,8 +1,10 @@
 package app.tuneroam.radio.data.repository
 
 import app.tuneroam.radio.data.local.CatalogCache
+import app.tuneroam.radio.data.remote.BundledCatalog
 import app.tuneroam.radio.data.remote.RadioBrowserClient
 import app.tuneroam.radio.data.remote.RadioHttpException
+import app.tuneroam.radio.domain.model.CatalogOrigin
 import app.tuneroam.radio.domain.model.CatalogQuery
 import app.tuneroam.radio.domain.model.Country
 import app.tuneroam.radio.domain.model.FailureReason
@@ -26,6 +28,7 @@ class OfflineFirstCatalog(
             bucket = "popular:$hideBroken:$limit",
             read = { cache.readStations(it) },
             write = { bucket, value -> cache.writeStations(bucket, value) },
+            bundled = { BundledCatalog.popular(limit, hideBroken) },
             fetch = { client.topClicked(limit, hideBroken) },
         )
 
@@ -34,6 +37,7 @@ class OfflineFirstCatalog(
             bucket = "search:${query.field}:${query.hideBroken}:${query.limit}:${query.text.trim().lowercase()}:${query.country.orEmpty()}",
             read = { cache.readStations(it) },
             write = { bucket, value -> cache.writeStations(bucket, value) },
+            bundled = { BundledCatalog.search(query) },
             fetch = { client.search(query) },
         )
 
@@ -42,6 +46,7 @@ class OfflineFirstCatalog(
             bucket = "countries",
             read = { _ -> cache.readCountries() },
             write = { _, value -> cache.writeCountries(value) },
+            bundled = { BundledCatalog.countries() },
             fetch = { client.countries() },
         )
 
@@ -50,6 +55,7 @@ class OfflineFirstCatalog(
             bucket = "country:$hideBroken:${country.trim().lowercase()}",
             read = { cache.readStations(it) },
             write = { bucket, value -> cache.writeStations(bucket, value) },
+            bundled = { BundledCatalog.inCountry(country, hideBroken) },
             fetch = {
                 client.search(
                     CatalogQuery(country = country.trim(), hideBroken = hideBroken, limit = 100),
@@ -61,31 +67,44 @@ class OfflineFirstCatalog(
         val matches = client.search(similarQuery(station))
             .filter { it.stationUuid != station.stationUuid }
             .take(20)
-        LoadResult.Fresh(matches)
+        if (matches.isNotEmpty()) {
+            LoadResult.Fresh(matches)
+        } else {
+            bundledSimilar(station)
+        }
     } catch (error: Throwable) {
-        LoadResult.Failed(error.toReason())
+        val bundled = BundledCatalog.similar(station)
+        if (bundled.isEmpty()) LoadResult.Failed(error.toReason()) else bundledSimilar(station)
     }
+
+    private fun bundledSimilar(station: Station): LoadResult<List<Station>> =
+        LoadResult.Cached(BundledCatalog.similar(station), stale = true, origin = CatalogOrigin.BUNDLED)
 
     override suspend fun registerClick(stationUuid: String) {
         client.registerClick(stationUuid)
     }
+
+    override fun bundled(): List<Station> = BundledCatalog.all()
 }
 
 private inline fun <T> cached(
     bucket: String,
     crossinline read: (String) -> List<T>,
     crossinline write: (String, List<T>) -> Unit,
+    crossinline bundled: () -> List<T>,
     crossinline fetch: suspend () -> List<T>,
 ): Flow<LoadResult<List<T>>> = flow {
     val cached = read(bucket)
-    if (cached.isNotEmpty()) emit(LoadResult.Cached(cached, stale = false))
+    val seed = cached.ifEmpty { bundled() }
+    val origin = if (cached.isNotEmpty()) CatalogOrigin.CACHE else CatalogOrigin.BUNDLED
+    if (seed.isNotEmpty()) emit(LoadResult.Cached(seed, stale = false, origin = origin))
     try {
         val fresh = fetch()
         write(bucket, fresh)
         emit(LoadResult.Fresh(fresh))
     } catch (error: Throwable) {
-        if (cached.isEmpty()) emit(LoadResult.Failed(error.toReason()))
-        else emit(LoadResult.Cached(cached, stale = true))
+        if (seed.isEmpty()) emit(LoadResult.Failed(error.toReason()))
+        else emit(LoadResult.Cached(seed, stale = true, origin = origin))
     }
 }.flowOn(Dispatchers.IO)
 

@@ -41,4 +41,27 @@
     <string name="back">返回</string>
     <string name="country_count">%1$d 座电台</string>
     <string name="using_original_url">正在使用电台原始地址。</string>
+    <string name="tab_roam">漫游</string>
+    <string name="roam_title">漫游</string>
+    <string name="roam_hint">拨动表盘。停下来时，会从那个国家放一座能播的电台。</string>
+    <string name="roam_land">播放这座</string>
+    <string name="roam_shuffle">随便一座</string>
+    <string name="roam_empty">附带目录里没有这个国家可播的电台。</string>
+    <string name="roam_loading">正在找一座电台…</string>
+    <string name="bundle_catalog">实时目录连不上。下面是随应用附带的电台，包含大陆、香港、台湾和新加坡的中文台。</string>
+    <string name="china_only">只看这台手机连通过的</string>
+    <string name="probe_list">探测这几座</string>
+    <string name="probing">正在看哪些流有应答…</string>
+    <string name="empty_china">这些电台还没有从这台手机连通。先探测列表，或播放一座再回来。</string>
+    <string name="next_similar_auto">这条流没有应答，正在换一座相近的电台。</string>
+    <string name="sleep_heading">睡眠</string>
+    <string name="sleep_off">关</string>
+    <string name="sleep_15">15 分钟</string>
+    <string name="sleep_30">30 分钟</string>
+    <string name="sleep_60">60 分钟</string>
+    <string name="sleep_remaining">%1$d 分钟后停止</string>
+    <string name="history_heading">最近播放</string>
+    <string name="empty_history">听过的电台会出现在这里，只存在这台手机上。</string>
+    <string name="shelf_saved">收藏</string>
+    <string name="shelf_recent">最近</string>
 </resources>

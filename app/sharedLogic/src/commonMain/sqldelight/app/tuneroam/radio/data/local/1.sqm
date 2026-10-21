@@ -1,0 +1,20 @@
+CREATE TABLE reachability (
+    stationUuid TEXT NOT NULL PRIMARY KEY,
+    successes INTEGER NOT NULL,
+    failures INTEGER NOT NULL,
+    lastOk INTEGER NOT NULL,
+    checkedAt INTEGER NOT NULL
+);
+
+CREATE TABLE playHistory (
+    stationUuid TEXT NOT NULL PRIMARY KEY,
+    payload TEXT NOT NULL,
+    playedAt INTEGER NOT NULL
+);
+
+CREATE TABLE mirrorMemory (
+    id INTEGER NOT NULL PRIMARY KEY,
+    host TEXT NOT NULL,
+    latencyMs INTEGER NOT NULL,
+    checkedAt INTEGER NOT NULL
+);

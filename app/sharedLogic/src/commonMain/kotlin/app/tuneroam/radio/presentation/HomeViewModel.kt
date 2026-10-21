@@ -2,6 +2,9 @@ package app.tuneroam.radio.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.tuneroam.radio.domain.catalog.ReachScore
+import app.tuneroam.radio.domain.catalog.applyChinaFilter
+import app.tuneroam.radio.domain.model.CatalogOrigin
 import app.tuneroam.radio.domain.model.CatalogQuery
 import app.tuneroam.radio.domain.model.FailureReason
 import app.tuneroam.radio.domain.model.LoadResult
@@ -10,11 +13,13 @@ import app.tuneroam.radio.domain.model.Station
 import app.tuneroam.radio.domain.playback.PlaybackCommands
 import app.tuneroam.radio.domain.repository.FavoritesRepository
 import app.tuneroam.radio.domain.repository.RadioCatalog
+import app.tuneroam.radio.domain.repository.ReachabilityRepository
+import app.tuneroam.radio.domain.repository.StationConnectivity
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -24,9 +29,12 @@ data class HomeUiState(
     val query: String = "",
     val field: SearchField = SearchField.NAME,
     val hideBroken: Boolean = true,
+    val chinaOnly: Boolean = false,
     val stations: List<Station> = emptyList(),
     val loading: Boolean = true,
+    val probing: Boolean = false,
     val stale: Boolean = false,
+    val origin: CatalogOrigin = CatalogOrigin.LIVE,
     val error: FailureReason? = null,
     val showingResults: Boolean = false,
 )
@@ -35,9 +43,14 @@ class HomeViewModel(
     private val catalog: RadioCatalog,
     private val favorites: FavoritesRepository,
     private val commands: PlaybackCommands,
+    private val reachability: ReachabilityRepository,
+    private val connectivity: StationConnectivity,
 ) : ViewModel() {
     private val _state = MutableStateFlow(HomeUiState())
-    val state: StateFlow<HomeUiState> = _state.asStateFlow()
+    private val scores = MutableStateFlow<Map<String, ReachScore>>(emptyMap())
+    val state: StateFlow<HomeUiState> = combine(_state, scores) { current, reach ->
+        current.copy(stations = applyChinaFilter(current.stations, reach, current.chinaOnly))
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
     val favoriteIds: StateFlow<Set<String>> = favorites.observe()
         .map { stations -> stations.map { it.stationUuid }.toSet() }
@@ -46,7 +59,29 @@ class HomeViewModel(
     private var loadJob: Job? = null
 
     init {
+        viewModelScope.launch {
+            reachability.observe().collect { scores.value = it }
+        }
         loadPopular()
+    }
+
+    fun onChinaOnly(enabled: Boolean) {
+        _state.update { it.copy(chinaOnly = enabled) }
+    }
+
+    fun probeVisible() {
+        if (_state.value.probing) return
+        val visible = applyChinaFilter(_state.value.stations, scores.value, _state.value.chinaOnly)
+        val targets = (visible.ifEmpty { _state.value.stations }).take(PROBE_LIMIT)
+        if (targets.isEmpty()) return
+        viewModelScope.launch {
+            _state.update { it.copy(probing = true) }
+            for (station in targets) {
+                val ok = connectivity.probe(station)
+                reachability.note(station.stationUuid, ok)
+            }
+            _state.update { it.copy(probing = false) }
+        }
     }
 
     fun onQueryChange(value: String) {
@@ -117,6 +152,7 @@ private fun HomeUiState.withStations(
         stations = result.value,
         loading = false,
         stale = false,
+        origin = CatalogOrigin.LIVE,
         error = null,
         showingResults = showingResults,
     )
@@ -124,6 +160,7 @@ private fun HomeUiState.withStations(
         stations = result.value,
         loading = false,
         stale = result.stale,
+        origin = result.origin,
         error = null,
         showingResults = showingResults,
     )
@@ -133,3 +170,5 @@ private fun HomeUiState.withStations(
         showingResults = showingResults,
     )
 }
+
+private const val PROBE_LIMIT = 8

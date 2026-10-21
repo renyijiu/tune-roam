@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Public
@@ -43,10 +44,12 @@ import app.tuneroam.radio.ui.favorites.FavoritesScreen
 import app.tuneroam.radio.ui.home.HomeScreen
 import app.tuneroam.radio.ui.player.MiniPlayerBar
 import app.tuneroam.radio.ui.player.NowPlayingScreen
+import app.tuneroam.radio.ui.roam.RoamScreen
 import app.tuneroam.radio.ui.theme.Starfield
 import org.koin.compose.koinInject
 
 private object Routes {
+    const val ROAM = "roam"
     const val HOME = "home"
     const val COUNTRIES = "countries"
     const val FAVORITES = "favorites"
@@ -72,7 +75,7 @@ fun TuneRoamApp() {
         }
     }
 
-    val showStars = route == null || route == Routes.HOME || route == Routes.COUNTRIES
+    val showStars = route == null || route == Routes.HOME || route == Routes.COUNTRIES || route == Routes.ROAM
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
@@ -82,6 +85,7 @@ fun TuneRoamApp() {
                 }
                 if (route != Routes.PLAYER) {
                     NavigationBar {
+                        NavItem(Routes.ROAM, R.string.tab_roam, route == Routes.ROAM, Icons.Filled.Explore, navController)
                         NavItem(Routes.HOME, R.string.tab_home, route == Routes.HOME, Icons.Filled.Home, navController)
                         NavItem(
                             Routes.COUNTRIES,
@@ -106,9 +110,10 @@ fun TuneRoamApp() {
             if (showStars) Starfield()
             NavHost(
                 navController = navController,
-                startDestination = Routes.HOME,
+                startDestination = Routes.ROAM,
                 modifier = Modifier.fillMaxSize(),
             ) {
+                composable(Routes.ROAM) { RoamScreen() }
                 composable(Routes.HOME) { HomeScreen() }
                 composable(Routes.COUNTRIES) {
                     CountriesScreen(onCountry = { name -> navController.navigate(Routes.country(name)) })

@@ -11,15 +11,22 @@ import kotlinx.serialization.encodeToString
 
 internal const val EXTRA_STATION_JSON = "app.tuneroam.radio.station"
 
-internal fun mediaItemFor(station: Station, candidate: StreamCandidate?): MediaItem {
+internal fun nowPlayingMetadata(station: Station, icyTitle: String?): MediaMetadata {
+    val icy = icyTitle?.trim()?.takeIf { it.isNotEmpty() && !it.equals(station.name, ignoreCase = true) }
+    val title = icy ?: station.name
+    val artist = if (icy == null) {
+        station.country.ifBlank { station.language.ifBlank { null } }
+    } else {
+        station.name
+    }
     val json = RadioJson.encodeToString(station)
     val extras = Bundle().apply { putString(EXTRA_STATION_JSON, json) }
-    val uri = candidate?.url?.takeIf { it.isNotBlank() }
-        ?: station.urlResolved.ifBlank { station.url }
-    val metadata = MediaMetadata.Builder()
-        .setTitle(station.name)
-        .setArtist(station.country.ifBlank { station.language.ifBlank { null } })
-        .setSubtitle(station.technicalLabel().ifBlank { null })
+    return MediaMetadata.Builder()
+        .setTitle(title)
+        .setArtist(artist)
+        .setAlbumTitle(station.name)
+        .setDisplayTitle(title)
+        .setSubtitle(artist)
         .setStation(station.name)
         .setIsBrowsable(false)
         .setIsPlayable(true)
@@ -27,12 +34,19 @@ internal fun mediaItemFor(station: Station, candidate: StreamCandidate?): MediaI
         .setArtworkUri(station.favicon.takeIf { it.startsWith("http") }?.let(Uri::parse))
         .setExtras(extras)
         .build()
+}
+
+internal fun mediaItemFor(station: Station, candidate: StreamCandidate?): MediaItem {
+    val json = RadioJson.encodeToString(station)
+    val extras = Bundle().apply { putString(EXTRA_STATION_JSON, json) }
+    val uri = candidate?.url?.takeIf { it.isNotBlank() }
+        ?: station.urlResolved.ifBlank { station.url }
     return MediaItem.Builder()
         .setMediaId(LibraryTree.station(station.stationUuid))
         .setUri(uri)
         .setLiveConfiguration(MediaItem.LiveConfiguration.Builder().setMaxPlaybackSpeed(1f).build())
         .setRequestMetadata(MediaItem.RequestMetadata.Builder().setExtras(extras).build())
-        .setMediaMetadata(metadata)
+        .setMediaMetadata(nowPlayingMetadata(station, icyTitle = null))
         .build()
 }
 

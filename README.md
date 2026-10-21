@@ -14,16 +14,31 @@ Android 上的全球网络电台。先把 Android 做完，共享的 Kotlin 核�
 
 ## 这一版有什么
 
-- 首页：热门电台，以及按名称、标签、国家搜索。默认隐藏最近检查失败的台（`lastcheckok`）。
-- 国家：国家列表和电台数量。首页和国家页有一层 Compose Canvas 星点背景。
-- 正在播放：台名、图标、国家、标签、码率 / 编码、健康状态、播放暂停、收藏。有 ICY 元数据时显示当前曲目。
-- 收藏存在本机 SQLDelight 里。
+- 漫游：Compose Canvas 的表盘。左右拨动，针下的国家会换一座可播的电台。也有「随便一座」。
+- 首页：热门电台，以及按名称、标签、国家搜索。默认隐藏最近检查失败的台（`lastcheckok`）。可以只看这台手机连通过的台，也可以对当前列表做一次短超时探测。
+- 国家：国家列表和电台数量。首页、漫游和国家页有一层 Compose Canvas 星点背景。
+- 正在播放：台名、图标、国家、标签、码率 / 编码、健康状态、播放暂停、收藏、睡眠定时。有 ICY 元数据时，界面、通知和锁屏都显示当前曲目，台标用电台 favicon。
+- 收藏和最近播放存在本机 SQLDelight 里。
 - 各页面底部有迷你播放条。
-- 后台播放：Media3 `MediaLibraryService`，通知、锁屏、耳机键、蓝牙 / 车机的 AVRCP 信息。流标记为直播，不提供进度条。
+- 后台播放：Media3 `MediaLibraryService`，通知、锁屏、耳机键、蓝牙 / 车机的 AVRCP 信息。流标记为直播，不提供进度条。来电或耳机拔出时暂停，不把播放音量调低来代替暂停。
 - 浏览树：收藏、热门、按国家。`automotive_app_desc.xml` 声明了 `media`。Android Auto 不是这一版的重点（中国大陆不可用）。
-- 流失败或在超时内起不来时，先试 `url_resolved`，再试 `url`，并给出说明；可以再点「播放一座相近的电台」。
+- 流失败或在超时内起不来时，先试 `url_resolved`，再试 `url`。都失败后自动换一座相近、并且短探测能连通的台（最多三次），也可以手动再点一次。
 
-数据来自 [Radio Browser](https://api.radio-browser.info/) 的公开 API。客户端会先向 `/json/servers` 发现一台服务器，请求带说明性的 User-Agent，播放时调用 `/json/url/{stationuuid}` 记一次点击。
+## 更新记录
+
+### v2
+
+- Radio Browser 会短超时探测已知镜像（目前是 `de1` 和 `de2`，再加上 `/json/servers` 发现的地址），记住最快的一台，请求失败就换下一台。
+- 应用内带了一份电台快照（含大陆、香港、台湾、新加坡的中文台，以及一部分全球热门）。实时目录连不上时用这份快照，连上之后写入本机缓存。
+- 每座台的连通结果记在本机。首页可以按「这台手机连通过」过滤，播放失败时优先换曾经连通过的相近台。
+- 新增漫游表盘、随便一座、最近播放、睡眠定时。ICY 曲目名和电台图标进媒体会话。
+
+### v1
+
+- 首页、国家、收藏、正在播放，Media3 后台播放，流地址备用。
+- 修复启动崩溃：`PlaybackCommands` 必须按接口注册进 Koin，否则 `HomeViewModel` 创建失败，进程会立刻退出。播放服务在 `onStartCommand` 里先 `startForeground`，避免慢启动被系统杀掉。
+
+数据来自 [Radio Browser](https://api.radio-browser.info/) 的公开 API。客户端会用短超时试每一台发现到的镜像，记住最快的一台。请求带说明性的 User-Agent，播放时调用 `/json/url/{stationuuid}` 记一次点击。镜像都连不上时，界面改用随包的电台快照，并说明实时目录不可达。
 
 灵感来自网页电台 [RoamDial](https://www.v2ex.com/t/1249321)：按世界各地浏览电台。随声不是 RoamDial，名字、包名和代码都与它无关。
 
@@ -55,7 +70,7 @@ app/androidApp/      Compose 界面、Media3 服务、平台绑定
 
 `StreamFallback` 生成候选地址：先 `url_resolved`，若与 `url` 不同再试 `url`。空地址会丢掉，两个地址相同只试一次。
 
-`PlaybackCoordinator` 记下当前尝试。引擎报错，或缓冲超过 12 秒还没开始，就换下一个地址。都失败时状态是 `UNAVAILABLE`，界面说明这条流可能在当前网络被阻断，并可以请求一座标签（否则国家）相近的台。
+`PlaybackCoordinator` 记下当前尝试。引擎报错，或缓冲超过 12 秒还没开始，就换下一个地址。都失败时状态是 `UNAVAILABLE`。服务会再按标签或国家找相近的台，跳过已经失败的，优先选这台手机连通过的，并用一次短连接探测确认流有应答，然后自动播放。界面也可以手动再换一座。
 
 服务去掉了 seek 相关的 player 命令，并把 `MediaItem` 标成直播，通知和锁屏不显示进度条。
 
@@ -71,8 +86,8 @@ sdk.dir=/path/to/android-sdk
 # 调试包
 ./gradlew :app:androidApp:assembleDebug
 
-# 共享模块单元测试（API 解析、备用流、收藏）
-./gradlew :app:sharedLogic:testDebugUnitTest
+# 共享模块单元测试（API 解析、备用流、收藏、镜像选择、附带目录、睡眠定时）
+./gradlew :app:sharedLogic:testDebugUnitTest :app:androidApp:testDebugUnitTest
 ```
 
 调试 APK：`app/androidApp/build/outputs/apk/debug/androidApp-debug.apk`。
@@ -88,11 +103,12 @@ sdk.dir=/path/to/android-sdk
 
 ## 已知限制
 
-- 构建环境里没有安装 Android 模拟器，所以没有界面截图。`/dev/kvm` 存在，但 SDK 里没有 emulator 和系统镜像。
-- 海外流在中国大陆经常连不上。备用地址能解决一部分「解析地址和原始地址不一致」的情况，解决不了地址本身不可达。
-- 标签和国家搜索按 Radio Browser 的规则做精确匹配；名称是部分匹配。国家也可以填两位代码。
-- ICY 曲目名取决于电台是否在流里发送，而且有的台会把台名写进标题。
-- 收藏和目录缓存只在本机，没有账号同步。
-- Android Auto / 车机浏览树没有在实车上验证。
+- 海外流在中国大陆经常连不上。备用地址、短探测和自动换台能避开一部分死链，解决不了目标服务器本身不可达。附带快照是某一时刻的 Radio Browser 结果，会过期。
+- 「只看这台手机连通过的」在第一次成功播放或探测之前是空的。探测只检查当前列表的前 8 座，每次最多几秒。
+- 目前公开可解析的 Radio Browser 镜像主要是 `de1` 和 `de2`。旧的 `nl1`、`at1`、`fi1` 主机名已经不存在。
+- 标签和国家搜索按 Radio Browser 的规则做精确匹配；名称是部分匹配。国家也可以填两位代码。漫游表盘用的是目录里的国家全名。
+- ICY 曲目名取决于电台是否在流里发送，而且有的台会把台名写进标题。没有 favicon 的台，通知里就没有封面。
+- 收藏、最近播放、连通记录和目录缓存只在本机，没有账号同步。
+- Android Auto / 车机浏览树没有在实车上验证。睡眠定时按墙钟计算，进程被系统杀掉之后不会再响。
 
 界面字体是 [Outfit](https://fonts.google.com/specimen/Outfit) 和 [Newsreader](https://fonts.google.com/specimen/Newsreader)，许可证为 SIL Open Font License，文本在 `third_party/fonts/`。

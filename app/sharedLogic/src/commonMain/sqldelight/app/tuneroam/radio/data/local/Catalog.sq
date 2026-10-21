@@ -162,3 +162,83 @@ selectCountries:
 SELECT *
 FROM cachedCountry
 ORDER BY stationCount DESC;
+
+CREATE TABLE reachability (
+    stationUuid TEXT NOT NULL PRIMARY KEY,
+    successes INTEGER NOT NULL,
+    failures INTEGER NOT NULL,
+    lastOk INTEGER NOT NULL,
+    checkedAt INTEGER NOT NULL
+);
+
+selectReachability:
+SELECT *
+FROM reachability;
+
+upsertReachability:
+INSERT OR REPLACE INTO reachability (
+    stationUuid,
+    successes,
+    failures,
+    lastOk,
+    checkedAt
+) VALUES (
+    :stationUuid,
+    :successes,
+    :failures,
+    :lastOk,
+    :checkedAt
+);
+
+CREATE TABLE playHistory (
+    stationUuid TEXT NOT NULL PRIMARY KEY,
+    payload TEXT NOT NULL,
+    playedAt INTEGER NOT NULL
+);
+
+selectHistory:
+SELECT *
+FROM playHistory
+ORDER BY playedAt DESC;
+
+insertHistory:
+INSERT OR REPLACE INTO playHistory (
+    stationUuid,
+    payload,
+    playedAt
+) VALUES (
+    :stationUuid,
+    :payload,
+    :playedAt
+);
+
+trimHistory:
+DELETE FROM playHistory
+WHERE stationUuid NOT IN (
+    SELECT stationUuid FROM playHistory ORDER BY playedAt DESC LIMIT 40
+);
+
+CREATE TABLE mirrorMemory (
+    id INTEGER NOT NULL PRIMARY KEY,
+    host TEXT NOT NULL,
+    latencyMs INTEGER NOT NULL,
+    checkedAt INTEGER NOT NULL
+);
+
+selectMirror:
+SELECT *
+FROM mirrorMemory
+WHERE id = 1;
+
+upsertMirror:
+INSERT OR REPLACE INTO mirrorMemory (
+    id,
+    host,
+    latencyMs,
+    checkedAt
+) VALUES (
+    1,
+    :host,
+    :latencyMs,
+    :checkedAt
+);

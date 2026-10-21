@@ -18,6 +18,7 @@ enum class PlaybackNotice {
     NONE,
     TRYING_ALTERNATE,
     UNAVAILABLE,
+    NEXT_SIMILAR,
 }
 
 data class PlaybackSnapshot(
@@ -51,7 +52,7 @@ class PlaybackCoordinator(
 
     private var session: StreamSession? = null
 
-    fun begin(station: Station): PlayDirective {
+    fun begin(station: Station, notice: PlaybackNotice = PlaybackNotice.NONE): PlayDirective {
         val opened = StreamSession(station.urlResolved, station.url)
         opened.markAttemptStart(clock())
         session = opened
@@ -68,6 +69,7 @@ class PlaybackCoordinator(
         _snapshot.value = PlaybackSnapshot(
             station = station,
             phase = PlaybackPhase.CONNECTING,
+            notice = notice,
             attempt = 1,
             attemptCount = opened.candidates.size,
             activeKind = candidate.kind,

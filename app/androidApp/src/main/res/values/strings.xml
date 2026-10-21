@@ -41,4 +41,27 @@
     <string name="back">Back</string>
     <string name="country_count">%1$d stations</string>
     <string name="using_original_url">Playing the station\'s original address.</string>
+    <string name="tab_roam">Roam</string>
+    <string name="roam_title">Roam</string>
+    <string name="roam_hint">Drag the dial. When it stops, a station from that country starts.</string>
+    <string name="roam_land">Play this station</string>
+    <string name="roam_shuffle">Random station</string>
+    <string name="roam_empty">No playable station for this country in the saved catalog.</string>
+    <string name="roam_loading">Finding a station…</string>
+    <string name="bundle_catalog">The live catalog can\'t be reached. These stations shipped with the app, including Chinese-language stations.</string>
+    <string name="china_only">China-reachable on this phone</string>
+    <string name="probe_list">Probe these stations</string>
+    <string name="probing">Checking which streams answer…</string>
+    <string name="empty_china">None of these stations have connected from this phone yet. Probe the list, or play one and come back.</string>
+    <string name="next_similar_auto">That stream didn\'t answer. Trying a similar station.</string>
+    <string name="sleep_heading">Sleep</string>
+    <string name="sleep_off">Off</string>
+    <string name="sleep_15">15 min</string>
+    <string name="sleep_30">30 min</string>
+    <string name="sleep_60">60 min</string>
+    <string name="sleep_remaining">Stops in %1$d min</string>
+    <string name="history_heading">Recently played</string>
+    <string name="empty_history">Stations you listen to show up here, on this phone only.</string>
+    <string name="shelf_saved">Saved</string>
+    <string name="shelf_recent">Recent</string>
 </resources>

@@ -1,5 +1,6 @@
 package app.tuneroam.radio.domain.repository
 
+import app.tuneroam.radio.domain.catalog.ReachScore
 import app.tuneroam.radio.domain.model.CatalogQuery
 import app.tuneroam.radio.domain.model.Country
 import app.tuneroam.radio.domain.model.LoadResult
@@ -18,6 +19,28 @@ interface RadioCatalog {
     suspend fun similar(station: Station): LoadResult<List<Station>>
 
     suspend fun registerClick(stationUuid: String)
+
+    /** Stations packed into the app. Used when the live catalog cannot be reached. */
+    fun bundled(): List<Station>
+}
+
+interface StationConnectivity {
+    /** Short connect to the stream. True when this network got a response. */
+    suspend fun probe(station: Station): Boolean
+}
+
+interface ReachabilityRepository {
+    fun observe(): Flow<Map<String, ReachScore>>
+
+    suspend fun scores(): Map<String, ReachScore>
+
+    suspend fun note(stationUuid: String, ok: Boolean)
+}
+
+interface HistoryRepository {
+    fun observe(): Flow<List<Station>>
+
+    suspend fun record(station: Station)
 }
 
 interface FavoritesRepository {

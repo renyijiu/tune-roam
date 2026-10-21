@@ -31,6 +31,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.tuneroam.radio.R
+import app.tuneroam.radio.domain.model.CatalogOrigin
 import app.tuneroam.radio.domain.model.SearchField
 import app.tuneroam.radio.presentation.HomeViewModel
 import app.tuneroam.radio.ui.components.EmptyNote
@@ -118,6 +119,31 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel()) {
             }
         }
         item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = stringResource(R.string.china_only),
+                    modifier = Modifier.weight(1f).padding(end = 12.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Switch(checked = state.chinaOnly, onCheckedChange = viewModel::onChinaOnly)
+            }
+        }
+        item {
+            TextButton(
+                onClick = viewModel::probeVisible,
+                modifier = Modifier.padding(horizontal = 12.dp),
+                enabled = !state.probing && state.stations.isNotEmpty(),
+            ) {
+                Text(stringResource(if (state.probing) R.string.probing else R.string.probe_list))
+            }
+        }
+        item {
             Text(
                 text = stringResource(if (state.showingResults) R.string.results_heading else R.string.popular_heading),
                 modifier = Modifier.padding(start = 20.dp, top = 18.dp, bottom = 6.dp),
@@ -127,7 +153,9 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel()) {
         if (state.stale) {
             item {
                 Text(
-                    text = stringResource(R.string.stale_cache),
+                    text = stringResource(
+                        if (state.origin == CatalogOrigin.BUNDLED) R.string.bundle_catalog else R.string.stale_cache,
+                    ),
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
                     color = MaterialTheme.colorScheme.secondary,
                     style = MaterialTheme.typography.bodyMedium,
@@ -149,7 +177,13 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel()) {
         } else if (state.stations.isEmpty() && state.error == null) {
             item {
                 EmptyNote(
-                    stringResource(if (state.showingResults) R.string.empty_search else R.string.empty_popular),
+                    stringResource(
+                        when {
+                            state.chinaOnly -> R.string.empty_china
+                            state.showingResults -> R.string.empty_search
+                            else -> R.string.empty_popular
+                        },
+                    ),
                 )
             }
         }
