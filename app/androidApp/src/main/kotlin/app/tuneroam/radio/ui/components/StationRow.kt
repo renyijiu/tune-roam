@@ -1,10 +1,11 @@
 package app.tuneroam.radio.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,11 +21,17 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -32,8 +39,10 @@ import androidx.compose.ui.unit.sp
 import app.tuneroam.radio.R
 import app.tuneroam.radio.domain.model.FailureReason
 import app.tuneroam.radio.domain.model.Station
+import app.tuneroam.radio.ui.fx.StationEmblem
 import app.tuneroam.radio.ui.theme.Signal
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 
 @Composable
 fun StationRow(
@@ -89,7 +98,12 @@ fun StationRow(
 @Composable
 fun StationMark(station: Station, modifier: Modifier = Modifier) {
     val url = station.favicon.takeIf { it.startsWith("http") }
-    BoxWithConstraints(
+    val context = LocalContext.current
+    val request = remember(url) { url?.let { ImageRequest.Builder(context).data(it).crossfade(true).build() } }
+    // The emblem stands in while the logo loads, and stays when there is none or it never arrives.
+    var loaded by remember(url) { mutableStateOf(false) }
+    val emblem by animateFloatAsState(if (loaded) 0f else 1f, tween(450), label = "emblem")
+    Box(
         modifier = modifier
             .clip(CircleShape)
             .background(
@@ -99,22 +113,15 @@ fun StationMark(station: Station, modifier: Modifier = Modifier) {
             ),
         contentAlignment = Alignment.Center,
     ) {
-        if (url == null) {
-            // The initial scales with the mark, from a list row up to the Now Playing orb.
-            Text(
-                text = station.name.take(1).uppercase(),
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontFamily = MaterialTheme.typography.displaySmall.fontFamily,
-                    fontSize = (maxWidth.value * 0.42f).sp,
-                    lineHeight = (maxWidth.value * 0.42f).sp,
-                ),
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
-            )
-        } else {
+        if (emblem > 0f) {
+            StationEmblem(station.name, Modifier.matchParentSize().graphicsLayer { alpha = emblem })
+        }
+        if (request != null) {
             AsyncImage(
-                model = url,
+                model = request,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
+                onSuccess = { loaded = true },
                 modifier = Modifier.matchParentSize(),
             )
         }

@@ -24,23 +24,34 @@ import kotlinx.coroutines.withContext
 data class StationColors(val primary: Color, val secondary: Color) {
     companion object {
         val Default = StationColors(Signal, Amber)
+
+        /** The same two hues as the station's [StationEmblem], for stations without a logo. */
+        fun fromName(name: String): StationColors {
+            val seed = EmblemSeed.of(name)
+            return StationColors(glow(seed.hue), glow(seed.accentHue))
+        }
     }
 }
 
-/** The station's colors, crossfading when the station changes. Falls back to the app's own. */
+/**
+ * The station's colors, crossfading when the station changes. Without a logo they follow its
+ * emblem; a logo with no vivid color falls back to the app's own.
+ */
 @Composable
 fun rememberStationColors(station: Station?): Pair<State<Color>, State<Color>> {
     val context = LocalContext.current
     val url = station?.favicon?.takeIf { it.startsWith("http") }
-    val extracted = produceState(StationColors.Default, url) {
+    val name = station?.name
+    val extracted = produceState(StationColors.Default, url, name) {
+        val fallback = name?.let(StationColors::fromName) ?: StationColors.Default
         if (url == null) {
-            value = StationColors.Default
+            value = fallback
             return@produceState
         }
         val request = ImageRequest.Builder(context).data(url).allowHardware(false).size(64).build()
         val result = context.imageLoader.execute(request) as? SuccessResult
         val bitmap = (result?.drawable as? BitmapDrawable)?.bitmap
-        value = bitmap?.let { withContext(Dispatchers.Default) { colorsOf(it) } } ?: StationColors.Default
+        value = if (bitmap == null) fallback else withContext(Dispatchers.Default) { colorsOf(bitmap) } ?: StationColors.Default
     }
     val primary = animateColorAsState(extracted.value.primary, tween(1_200), label = "primary")
     val secondary = animateColorAsState(extracted.value.secondary, tween(1_200), label = "secondary")
