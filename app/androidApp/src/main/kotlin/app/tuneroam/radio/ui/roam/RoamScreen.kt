@@ -71,6 +71,7 @@ import app.tuneroam.radio.domain.catalog.WorldDial
 import app.tuneroam.radio.domain.playback.PlaybackCoordinator
 import app.tuneroam.radio.domain.playback.PlaybackPhase
 import app.tuneroam.radio.presentation.RoamViewModel
+import app.tuneroam.radio.ui.components.SettingsButton
 import app.tuneroam.radio.ui.fx.DecodeText
 import app.tuneroam.radio.ui.fx.GlobeCamera
 import app.tuneroam.radio.ui.fx.GlobePainter
@@ -100,7 +101,10 @@ private val STEP = 360f / WorldDial.stops.size
 private enum class Status { SCANNING, CONNECTING, LOCKED, ON_AIR }
 
 @Composable
-fun RoamScreen(viewModel: RoamViewModel = koinViewModel()) {
+fun RoamScreen(
+    onOpenSettings: () -> Unit,
+    viewModel: RoamViewModel = koinViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val playback by koinInject<PlaybackCoordinator>().snapshot.collectAsStateWithLifecycle()
     val chinese = LocalConfiguration.current.locales[0].language.startsWith("zh")
@@ -198,6 +202,7 @@ fun RoamScreen(viewModel: RoamViewModel = koinViewModel()) {
                 style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            SettingsButton(onOpenSettings)
         }
         Text(
             text = stringResource(R.string.roam_hint),

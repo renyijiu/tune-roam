@@ -57,6 +57,7 @@ import app.tuneroam.radio.ui.player.MiniPlayerBar
 import app.tuneroam.radio.ui.player.NowPlayingScreen
 import app.tuneroam.radio.ui.player.PlayerBackdrop
 import app.tuneroam.radio.ui.roam.RoamScreen
+import app.tuneroam.radio.ui.settings.SettingsScreen
 import app.tuneroam.radio.ui.theme.LocalArtworkVisibility
 import app.tuneroam.radio.ui.theme.LocalSharedTransition
 import app.tuneroam.radio.ui.theme.Starfield
@@ -70,6 +71,7 @@ private object Routes {
     const val FAVORITES = "favorites"
     const val COUNTRY = "country/{name}"
     const val PLAYER = "player"
+    const val SETTINGS = "settings"
 
     fun country(name: String) = "country/${Uri.encode(name)}"
 }
@@ -120,7 +122,7 @@ fun TuneRoamApp(
             }
             Scaffold(
                 containerColor = if (route == Routes.PLAYER) Color.Transparent else MaterialTheme.colorScheme.background,
-            contentColor = MaterialTheme.colorScheme.onBackground,
+                contentColor = MaterialTheme.colorScheme.onBackground,
                 bottomBar = {
                     Column {
                         AnimatedVisibility(
@@ -171,8 +173,9 @@ fun TuneRoamApp(
                         popEnterTransition = { fadeIn(tween(220, delayMillis = 60)) },
                         popExitTransition = { fadeOut(tween(160)) },
                     ) {
-                        composable(Routes.ROAM) { RoamScreen() }
-                        composable(Routes.HOME) { HomeScreen() }
+                        composable(Routes.ROAM) { RoamScreen(onOpenSettings = { navController.navigate(Routes.SETTINGS) }) }
+                        composable(Routes.HOME) { HomeScreen(onOpenSettings = { navController.navigate(Routes.SETTINGS) }) }
+                        composable(Routes.SETTINGS) { SettingsScreen(onBack = { navController.popBackStack() }) }
                         composable(Routes.COUNTRIES) {
                             CountriesScreen(onCountry = { name -> navController.navigate(Routes.country(name)) })
                         }

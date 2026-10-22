@@ -296,3 +296,23 @@ WHERE titleKey = :titleKey;
 deleteTrack:
 DELETE FROM savedTrack
 WHERE id = :id;
+
+-- Small app settings, one JSON value per key (see SqlSettingsRepository).
+CREATE TABLE setting (
+    key TEXT NOT NULL PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+selectSetting:
+SELECT value
+FROM setting
+WHERE key = :key;
+
+upsertSetting:
+INSERT OR REPLACE INTO setting (
+    key,
+    value
+) VALUES (
+    :key,
+    :value
+);

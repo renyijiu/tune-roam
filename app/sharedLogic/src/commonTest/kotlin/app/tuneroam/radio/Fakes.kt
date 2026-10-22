@@ -3,12 +3,15 @@ package app.tuneroam.radio
 import app.tuneroam.radio.domain.catalog.ReachScore
 import app.tuneroam.radio.domain.model.CatalogQuery
 import app.tuneroam.radio.domain.model.Country
+import app.tuneroam.radio.domain.model.AppSettings
 import app.tuneroam.radio.domain.model.LoadResult
+import app.tuneroam.radio.domain.model.RoamFilter
 import app.tuneroam.radio.domain.model.Station
 import app.tuneroam.radio.domain.playback.PlaybackCommands
 import app.tuneroam.radio.domain.repository.FavoritesRepository
 import app.tuneroam.radio.domain.repository.HistoryRepository
 import app.tuneroam.radio.domain.repository.RadioCatalog
+import app.tuneroam.radio.domain.repository.SettingsRepository
 import app.tuneroam.radio.domain.repository.ReachabilityRepository
 import app.tuneroam.radio.domain.repository.StationConnectivity
 import kotlinx.coroutines.flow.Flow
@@ -55,9 +58,12 @@ internal class FakeCatalog(
 
     override suspend fun similar(station: Station): LoadResult<List<Station>> = LoadResult.Fresh(similar)
 
-    override suspend fun random(limit: Int): LoadResult<List<Station>> {
+    var lastFilter = RoamFilter()
+
+    override suspend fun random(limit: Int, filter: RoamFilter): LoadResult<List<Station>> {
         randomCalls += 1
-        return LoadResult.Fresh(random.take(limit))
+        lastFilter = filter
+        return LoadResult.Fresh(random.filter(filter::matches).take(limit))
     }
 
     override suspend fun byUuid(stationUuid: String): Station? =
@@ -146,5 +152,17 @@ internal class FakeFavorites(saved: List<Station> = emptyList()) : FavoritesRepo
 
     override suspend fun remove(stationUuid: String) {
         state.value = state.value.filter { it.stationUuid != stationUuid }
+    }
+}
+
+internal class FakeSettings(initial: AppSettings = AppSettings()) : SettingsRepository {
+    val state = MutableStateFlow(initial)
+
+    override fun observe(): Flow<AppSettings> = state
+
+    override suspend fun current(): AppSettings = state.value
+
+    override suspend fun update(transform: (AppSettings) -> AppSettings) {
+        state.value = transform(state.value)
     }
 }

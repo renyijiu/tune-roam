@@ -11,3 +11,8 @@ captures/
 *.ap_
 *.aab
 .DS_Store
+
+# Release signing (see README)
+*.jks
+*.keystore
+keystore.properties

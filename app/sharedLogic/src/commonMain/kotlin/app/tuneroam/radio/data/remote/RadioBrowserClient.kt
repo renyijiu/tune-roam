@@ -5,6 +5,7 @@ import app.tuneroam.radio.core.runCancellable
 import app.tuneroam.radio.domain.catalog.mirrorHosts
 import app.tuneroam.radio.domain.model.CatalogQuery
 import app.tuneroam.radio.domain.model.Country
+import app.tuneroam.radio.domain.model.RoamFilter
 import app.tuneroam.radio.domain.model.Station
 import app.tuneroam.radio.domain.model.respecting
 import app.tuneroam.radio.domain.model.toQueryMap
@@ -141,15 +142,15 @@ class RadioBrowserClient(
         return raw.respecting(query.hideBroken).take(query.limit)
     }
 
-    suspend fun random(limit: Int): List<Station> =
+    suspend fun random(limit: Int, filter: RoamFilter = RoamFilter()): List<Station> =
         getStations(
             "/json/stations/search",
             mapOf(
                 "order" to "random",
                 "limit" to limit.coerceAtLeast(1).toString(),
                 "hidebroken" to "true",
-            ),
-        )
+            ) + filter.queryParameters(),
+        ).filter(filter::matches)
 
     suspend fun byUuid(stationUuid: String): Station? =
         getStations("/json/stations/byuuid/${stationUuid.trim()}").firstOrNull()

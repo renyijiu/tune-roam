@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -5,6 +6,27 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+}
+
+/**
+ * Release signing comes from `keystore.properties` at the repository root (git-ignored)
+ * or, in CI, from environment variables. Without either, `assembleRelease` still builds
+ * and shrinks, but leaves the APK unsigned.
+ */
+val releaseSigning: Map<String, String>? = run {
+    val file = rootProject.file("keystore.properties")
+    val values = if (file.exists()) {
+        Properties().apply { file.inputStream().use(::load) }
+            .let { props -> props.stringPropertyNames().associateWith { props.getProperty(it) } }
+    } else {
+        mapOf(
+            "storeFile" to System.getenv("TUNEROAM_KEYSTORE"),
+            "storePassword" to System.getenv("TUNEROAM_KEYSTORE_PASSWORD"),
+            "keyAlias" to System.getenv("TUNEROAM_KEY_ALIAS"),
+            "keyPassword" to System.getenv("TUNEROAM_KEY_PASSWORD"),
+        ).filterValues { !it.isNullOrBlank() }.mapValues { it.value!! }
+    }
+    values.takeIf { it.keys.containsAll(listOf("storeFile", "storePassword", "keyAlias", "keyPassword")) }
 }
 
 android {
@@ -19,9 +41,22 @@ android {
         versionName = "0.1.0"
     }
 
+    signingConfigs {
+        releaseSigning?.let { values ->
+            create("release") {
+                storeFile = rootProject.file(values.getValue("storeFile"))
+                storePassword = values.getValue("storePassword")
+                keyAlias = values.getValue("keyAlias")
+                keyPassword = values.getValue("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.findByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",

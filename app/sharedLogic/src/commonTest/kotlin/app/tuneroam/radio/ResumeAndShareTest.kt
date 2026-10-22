@@ -107,7 +107,7 @@ class ResumeAndShareTest {
             commands = commands,
             similarStations = SimilarStations(catalog, reach, connectivity),
             sleepTimer = SleepTimer(),
-            deck = RoamDeck(catalog, reach, connectivity, CoroutineScope(Dispatchers.Unconfined)),
+            deck = RoamDeck(catalog, reach, connectivity, FakeSettings(), CoroutineScope(Dispatchers.Unconfined)),
             history = history,
             catalog = catalog,
         )
