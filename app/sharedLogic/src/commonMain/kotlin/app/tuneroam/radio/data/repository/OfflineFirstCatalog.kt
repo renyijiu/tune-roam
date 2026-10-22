@@ -10,6 +10,7 @@ import app.tuneroam.radio.domain.model.CatalogQuery
 import app.tuneroam.radio.domain.model.Country
 import app.tuneroam.radio.domain.model.FailureReason
 import app.tuneroam.radio.domain.model.LoadResult
+import app.tuneroam.radio.domain.model.RoamFilter
 import app.tuneroam.radio.domain.model.Station
 import app.tuneroam.radio.domain.model.similarQuery
 import app.tuneroam.radio.domain.repository.RadioCatalog
@@ -83,10 +84,13 @@ class OfflineFirstCatalog(
         }
     }
 
-    override suspend fun random(limit: Int): LoadResult<List<Station>> {
-        val live = runCancellable { client.random(limit) }
+    override suspend fun random(limit: Int, filter: RoamFilter): LoadResult<List<Station>> {
+        // A filter several choices wide is applied on the device, so ask for more.
+        val fetch = if (filter.isActive) (limit * 3).coerceAtMost(MAX_RANDOM_FETCH) else limit
+        val live = runCancellable { client.random(fetch, filter).take(limit) }
         live.getOrNull()?.takeIf { it.isNotEmpty() }?.let { return LoadResult.Fresh(it) }
-        return LoadResult.Cached(BundledCatalog.random(limit), stale = true, origin = CatalogOrigin.BUNDLED)
+        val bundled = BundledCatalog.random(BundledCatalog.all().size).filter(filter::matches).take(limit)
+        return LoadResult.Cached(bundled, stale = true, origin = CatalogOrigin.BUNDLED)
     }
 
     override suspend fun byUuid(stationUuid: String): Station? =
@@ -97,6 +101,8 @@ class OfflineFirstCatalog(
         client.registerClick(stationUuid)
     }
 }
+
+private const val MAX_RANDOM_FETCH = 100
 
 private inline fun <T> cached(
     crossinline read: () -> List<T>,

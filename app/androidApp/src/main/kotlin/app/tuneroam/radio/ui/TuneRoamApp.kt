@@ -45,6 +45,7 @@ import app.tuneroam.radio.ui.home.HomeScreen
 import app.tuneroam.radio.ui.player.MiniPlayerBar
 import app.tuneroam.radio.ui.player.NowPlayingScreen
 import app.tuneroam.radio.ui.roam.RoamScreen
+import app.tuneroam.radio.ui.settings.SettingsScreen
 import app.tuneroam.radio.ui.theme.Starfield
 import app.tuneroam.radio.presentation.PlayerViewModel
 import org.koin.androidx.compose.koinViewModel
@@ -57,6 +58,7 @@ private object Routes {
     const val FAVORITES = "favorites"
     const val COUNTRY = "country/{name}"
     const val PLAYER = "player"
+    const val SETTINGS = "settings"
 
     fun country(name: String) = "country/${Uri.encode(name)}"
 }
@@ -131,8 +133,9 @@ fun TuneRoamApp(
                 startDestination = Routes.ROAM,
                 modifier = Modifier.fillMaxSize(),
             ) {
-                composable(Routes.ROAM) { RoamScreen() }
-                composable(Routes.HOME) { HomeScreen() }
+                composable(Routes.ROAM) { RoamScreen(onOpenSettings = { navController.navigate(Routes.SETTINGS) }) }
+                composable(Routes.HOME) { HomeScreen(onOpenSettings = { navController.navigate(Routes.SETTINGS) }) }
+                composable(Routes.SETTINGS) { SettingsScreen(onBack = { navController.popBackStack() }) }
                 composable(Routes.COUNTRIES) {
                     CountriesScreen(onCountry = { name -> navController.navigate(Routes.country(name)) })
                 }
