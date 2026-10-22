@@ -99,7 +99,7 @@ fun StationRow(
 fun StationMark(station: Station, modifier: Modifier = Modifier) {
     val url = station.favicon.takeIf { it.startsWith("http") }
     val context = LocalContext.current
-    val request = remember(url) { url?.let { ImageRequest.Builder(context).data(it).crossfade(true).build() } }
+    val request = remember(url) { url?.let { ImageRequest.Builder(context).data(it).transformations(LogoPlate).crossfade(true).build() } }
     // The emblem stands in while the logo loads, and stays when there is none or it never arrives.
     var loaded by remember(url) { mutableStateOf(false) }
     val emblem by animateFloatAsState(if (loaded) 0f else 1f, tween(450), label = "emblem")
