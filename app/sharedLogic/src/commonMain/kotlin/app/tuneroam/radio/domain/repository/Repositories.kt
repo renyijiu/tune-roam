@@ -91,3 +91,8 @@ interface TrackRepository {
 /** Saved station ids, for the heart on every list row. */
 fun FavoritesRepository.observeIds(): Flow<Set<String>> =
     observe().map { stations -> stations.mapTo(HashSet()) { it.stationUuid } }
+
+/** A station known only by its uuid: a saved favorite first (works offline), then the catalog. */
+suspend fun RadioCatalog.lookUp(stationUuid: String, favorites: FavoritesRepository): Station? =
+    favorites.list().firstOrNull { it.stationUuid.equals(stationUuid, ignoreCase = true) }
+        ?: byUuid(stationUuid)

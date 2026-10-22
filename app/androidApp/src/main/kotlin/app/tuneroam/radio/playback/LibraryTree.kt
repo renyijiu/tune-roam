@@ -18,4 +18,7 @@ object LibraryTree {
 
     fun countryName(mediaId: String): String? =
         mediaId.takeIf { it.startsWith(COUNTRY_PREFIX) }?.removePrefix(COUNTRY_PREFIX)
+
+    fun stationUuid(mediaId: String): String? =
+        mediaId.takeIf { it.startsWith(STATION_PREFIX) }?.removePrefix(STATION_PREFIX)?.takeIf { it.isNotBlank() }
 }
