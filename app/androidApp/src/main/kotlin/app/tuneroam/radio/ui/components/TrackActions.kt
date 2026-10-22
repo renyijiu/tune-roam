@@ -21,11 +21,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import app.tuneroam.radio.R
 import app.tuneroam.radio.domain.model.MusicService
 import app.tuneroam.radio.ui.theme.Signal
+import app.tuneroam.radio.ui.theme.popOnChange
 
 /** Heart for saving the song title playing now. */
 @Composable
@@ -35,6 +37,7 @@ fun SaveTrackButton(saved: Boolean, onToggle: () -> Unit) {
             imageVector = if (saved) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
             contentDescription = stringResource(if (saved) R.string.track_unsave else R.string.track_save),
             tint = if (saved) Signal else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.popOnChange(saved),
         )
     }
 }
