@@ -5,6 +5,14 @@ import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
@@ -22,9 +30,11 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -38,16 +48,19 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import app.tuneroam.radio.R
 import app.tuneroam.radio.domain.playback.PlaybackCoordinator
+import app.tuneroam.radio.presentation.PlayerViewModel
 import app.tuneroam.radio.ui.country.CountriesScreen
 import app.tuneroam.radio.ui.country.CountryStationsScreen
 import app.tuneroam.radio.ui.favorites.FavoritesScreen
 import app.tuneroam.radio.ui.home.HomeScreen
 import app.tuneroam.radio.ui.player.MiniPlayerBar
 import app.tuneroam.radio.ui.player.NowPlayingScreen
+import app.tuneroam.radio.ui.player.PlayerBackdrop
 import app.tuneroam.radio.ui.roam.RoamScreen
 import app.tuneroam.radio.ui.settings.SettingsScreen
+import app.tuneroam.radio.ui.theme.LocalArtworkVisibility
+import app.tuneroam.radio.ui.theme.LocalSharedTransition
 import app.tuneroam.radio.ui.theme.Starfield
-import app.tuneroam.radio.presentation.PlayerViewModel
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -67,6 +80,7 @@ private object Routes {
  * [pendingLink] is a station share link the activity received; it is opened once and
  * then reported back through [onLinkHandled].
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun TuneRoamApp(
     pendingLink: String? = null,
@@ -96,59 +110,94 @@ fun TuneRoamApp(
     }
 
     val showStars = route == null || route == Routes.HOME || route == Routes.COUNTRIES || route == Routes.ROAM
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = {
-            Column {
-                if (snapshot.station != null && route != Routes.PLAYER) {
-                    MiniPlayerBar(onOpen = { navController.navigate(Routes.PLAYER) }, viewModel = player)
-                }
-                if (route != Routes.PLAYER) {
-                    NavigationBar {
-                        NavItem(Routes.ROAM, R.string.tab_roam, route == Routes.ROAM, Icons.Filled.Explore, navController)
-                        NavItem(Routes.HOME, R.string.tab_home, route == Routes.HOME, Icons.Filled.Home, navController)
-                        NavItem(
-                            Routes.COUNTRIES,
-                            R.string.tab_countries,
-                            route == Routes.COUNTRIES || route == Routes.COUNTRY,
-                            Icons.Filled.Public,
-                            navController,
-                        )
-                        NavItem(
-                            Routes.FAVORITES,
-                            R.string.tab_favorites,
-                            route == Routes.FAVORITES,
-                            Icons.Filled.Favorite,
-                            navController,
-                        )
-                    }
-                }
-            }
-        },
-    ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            if (showStars) Starfield()
-            NavHost(
-                navController = navController,
-                startDestination = Routes.ROAM,
-                modifier = Modifier.fillMaxSize(),
+    SharedTransitionLayout {
+        CompositionLocalProvider(LocalSharedTransition provides this) {
+            // Now Playing's aurora runs edge to edge, under the status bar.
+            AnimatedVisibility(
+                visible = route == Routes.PLAYER,
+                enter = fadeIn(tween(500)),
+                exit = fadeOut(tween(300)),
             ) {
-                composable(Routes.ROAM) { RoamScreen(onOpenSettings = { navController.navigate(Routes.SETTINGS) }) }
-                composable(Routes.HOME) { HomeScreen(onOpenSettings = { navController.navigate(Routes.SETTINGS) }) }
-                composable(Routes.SETTINGS) { SettingsScreen(onBack = { navController.popBackStack() }) }
-                composable(Routes.COUNTRIES) {
-                    CountriesScreen(onCountry = { name -> navController.navigate(Routes.country(name)) })
-                }
-                composable(
-                    route = Routes.COUNTRY,
-                    arguments = listOf(navArgument("name") { type = NavType.StringType }),
-                ) { entry ->
-                    val decoded = Uri.decode(entry.arguments?.getString("name").orEmpty())
-                    CountryStationsScreen(country = decoded, onBack = { navController.popBackStack() })
-                }
-                composable(Routes.FAVORITES) { FavoritesScreen() }
-                composable(Routes.PLAYER) {
-                    NowPlayingScreen(onBack = { navController.popBackStack() }, viewModel = player)
+                PlayerBackdrop(snapshot, Modifier.fillMaxSize())
+            }
+            Scaffold(
+                containerColor = if (route == Routes.PLAYER) Color.Transparent else MaterialTheme.colorScheme.background,
+                contentColor = MaterialTheme.colorScheme.onBackground,
+                bottomBar = {
+                    Column {
+                        AnimatedVisibility(
+                            visible = snapshot.station != null && route != Routes.PLAYER,
+                            enter = slideInVertically(tween(320)) { it } + fadeIn(tween(220)),
+                            exit = slideOutVertically(tween(220)) { it } + fadeOut(tween(160)),
+                        ) {
+                            CompositionLocalProvider(LocalArtworkVisibility provides this) {
+                                MiniPlayerBar(onOpen = { navController.navigate(Routes.PLAYER) }, viewModel = player)
+                            }
+                        }
+                        // Slides away rather than vanishing, so the screen above doesn't jump.
+                        AnimatedVisibility(
+                            visible = route != Routes.PLAYER,
+                            enter = slideInVertically(tween(320)) { it } + fadeIn(tween(220)),
+                            exit = slideOutVertically(tween(260)) { it } + fadeOut(tween(200)),
+                        ) {
+                            NavigationBar {
+                                NavItem(Routes.ROAM, R.string.tab_roam, route == Routes.ROAM, Icons.Filled.Explore, navController)
+                                NavItem(Routes.HOME, R.string.tab_home, route == Routes.HOME, Icons.Filled.Home, navController)
+                                NavItem(
+                                    Routes.COUNTRIES,
+                                    R.string.tab_countries,
+                                    route == Routes.COUNTRIES || route == Routes.COUNTRY,
+                                    Icons.Filled.Public,
+                                    navController,
+                                )
+                                NavItem(
+                                    Routes.FAVORITES,
+                                    R.string.tab_favorites,
+                                    route == Routes.FAVORITES,
+                                    Icons.Filled.Favorite,
+                                    navController,
+                                )
+                            }
+                        }
+                    }
+                },
+            ) { padding ->
+                Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+                    if (showStars) Starfield()
+                    NavHost(
+                        navController = navController,
+                        startDestination = Routes.ROAM,
+                        modifier = Modifier.fillMaxSize(),
+                        enterTransition = { fadeIn(tween(220, delayMillis = 60)) },
+                        exitTransition = { fadeOut(tween(160)) },
+                        popEnterTransition = { fadeIn(tween(220, delayMillis = 60)) },
+                        popExitTransition = { fadeOut(tween(160)) },
+                    ) {
+                        composable(Routes.ROAM) { RoamScreen(onOpenSettings = { navController.navigate(Routes.SETTINGS) }) }
+                        composable(Routes.HOME) { HomeScreen(onOpenSettings = { navController.navigate(Routes.SETTINGS) }) }
+                        composable(Routes.SETTINGS) { SettingsScreen(onBack = { navController.popBackStack() }) }
+                        composable(Routes.COUNTRIES) {
+                            CountriesScreen(onCountry = { name -> navController.navigate(Routes.country(name)) })
+                        }
+                        composable(
+                            route = Routes.COUNTRY,
+                            arguments = listOf(navArgument("name") { type = NavType.StringType }),
+                        ) { entry ->
+                            val decoded = Uri.decode(entry.arguments?.getString("name").orEmpty())
+                            CountryStationsScreen(country = decoded, onBack = { navController.popBackStack() })
+                        }
+                        composable(Routes.FAVORITES) { FavoritesScreen() }
+                        // Now Playing rises out of the mini player and sinks back into it.
+                        composable(
+                            route = Routes.PLAYER,
+                            enterTransition = { slideInVertically(tween(380)) { it / 3 } + fadeIn(tween(260)) },
+                            popExitTransition = { slideOutVertically(tween(280)) { it / 3 } + fadeOut(tween(200)) },
+                        ) {
+                            CompositionLocalProvider(LocalArtworkVisibility provides this) {
+                                NowPlayingScreen(onBack = { navController.popBackStack() }, viewModel = player)
+                            }
+                        }
+                    }
                 }
             }
         }
