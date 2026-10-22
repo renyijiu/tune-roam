@@ -151,6 +151,9 @@ class RadioBrowserClient(
             ),
         )
 
+    suspend fun byUuid(stationUuid: String): Station? =
+        getStations("/json/stations/byuuid/${stationUuid.trim()}").firstOrNull()
+
     suspend fun countries(): List<Country> = get("/json/countries") { body ->
         RadioPayloads.countries(body)
     }

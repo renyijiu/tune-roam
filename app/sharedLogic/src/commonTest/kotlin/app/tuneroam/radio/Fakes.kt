@@ -6,6 +6,8 @@ import app.tuneroam.radio.domain.model.Country
 import app.tuneroam.radio.domain.model.LoadResult
 import app.tuneroam.radio.domain.model.Station
 import app.tuneroam.radio.domain.playback.PlaybackCommands
+import app.tuneroam.radio.domain.repository.FavoritesRepository
+import app.tuneroam.radio.domain.repository.HistoryRepository
 import app.tuneroam.radio.domain.repository.RadioCatalog
 import app.tuneroam.radio.domain.repository.ReachabilityRepository
 import app.tuneroam.radio.domain.repository.StationConnectivity
@@ -58,6 +60,9 @@ internal class FakeCatalog(
         return LoadResult.Fresh(random.take(limit))
     }
 
+    override suspend fun byUuid(stationUuid: String): Station? =
+        (similar + random + inCountry.flatten()).firstOrNull { it.stationUuid == stationUuid }
+
     override suspend fun registerClick(stationUuid: String) = Unit
 }
 
@@ -99,7 +104,47 @@ internal class RecordingCommands : PlaybackCommands {
         played += station
     }
 
-    override fun toggle() = Unit
+    var toggles = 0
+
+    override fun toggle() {
+        toggles += 1
+    }
 
     override fun pause() = Unit
+
+    var nexts = 0
+
+    override fun next() {
+        nexts += 1
+    }
+
+    override fun previous() = Unit
+}
+
+internal class FakeHistory(private val last: Station? = null) : HistoryRepository {
+    override fun observe(): Flow<List<Station>> = flowOf(listOfNotNull(last))
+
+    override suspend fun latest(): Station? = last
+
+    override suspend fun record(station: Station) = Unit
+}
+
+internal class FakeFavorites(saved: List<Station> = emptyList()) : FavoritesRepository {
+    private val state = MutableStateFlow(saved)
+
+    override fun observe(): Flow<List<Station>> = state
+
+    override suspend fun list(): List<Station> = state.value
+
+    override suspend fun isFavorite(stationUuid: String): Boolean = state.value.any { it.stationUuid == stationUuid }
+
+    override suspend fun toggle(station: Station): Boolean {
+        val had = isFavorite(station.stationUuid)
+        state.value = if (had) state.value.filter { it.stationUuid != station.stationUuid } else state.value + station
+        return !had
+    }
+
+    override suspend fun remove(stationUuid: String) {
+        state.value = state.value.filter { it.stationUuid != stationUuid }
+    }
 }

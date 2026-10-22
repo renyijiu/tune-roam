@@ -1,7 +1,8 @@
 package app.tuneroam.radio
 
-import app.tuneroam.radio.domain.catalog.ReachScore
 import app.tuneroam.radio.domain.catalog.WorldDial
+import app.tuneroam.radio.domain.playback.PlaybackCoordinator
+import app.tuneroam.radio.domain.playback.RoamDeck
 import app.tuneroam.radio.domain.playback.SimilarStations
 import app.tuneroam.radio.presentation.RoamViewModel
 import kotlin.test.AfterTest
@@ -10,6 +11,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -57,39 +59,22 @@ class RoamAndHopTest {
     }
 
     @Test
-    fun shuffleDrawsFromTheLiveDeckAndRefillsOnlyWhenEmpty() = runTest {
-        val batch = listOf(
-            testStation("jp", countryCode = "JP", country = "Japan"),
-            testStation("pe", countryCode = "PE", country = "Peru"),
-        )
-        val catalog = FakeCatalog(random = batch)
+    fun dialFollowsThePlayingStationAndStaysPutOffTheDial() = runTest {
+        val coordinator = PlaybackCoordinator()
         val commands = RecordingCommands()
-        val roam = RoamViewModel(catalog, commands, FakeReachability())
+        val roam = roam(FakeCatalog(), commands, coordinator)
 
-        roam.shuffle()
+        coordinator.begin(testStation("jp", countryCode = "JP"))
         assertEquals("jp", roam.state.value.station?.stationUuid)
         assertEquals(WorldDial.indexOfCode("JP"), roam.state.value.index)
 
-        // Peru has no stop on the dial: the station plays, the dial stays on Japan.
-        roam.shuffle()
+        // Peru has no stop on the dial: the station shows, the dial stays on Japan.
+        coordinator.begin(testStation("pe", countryCode = "PE"))
         assertEquals("pe", roam.state.value.station?.stationUuid)
         assertEquals(WorldDial.indexOfCode("JP"), roam.state.value.index)
-        assertEquals(1, catalog.randomCalls)
 
         roam.shuffle()
-        assertEquals(2, catalog.randomCalls)
-        assertEquals(listOf("jp", "pe", "jp"), commands.played.map { it.stationUuid })
-    }
-
-    @Test
-    fun shuffleMovesStationsThatFailedHereToTheBack() = runTest {
-        val dead = testStation("dead", countryCode = "FR")
-        val fresh = testStation("fresh", countryCode = "DE")
-        val reach = FakeReachability(mapOf("dead" to ReachScore(failures = 2, lastOk = false)))
-        val roam = RoamViewModel(FakeCatalog(random = listOf(dead, fresh)), RecordingCommands(), reach)
-
-        roam.shuffle()
-        assertEquals("fresh", roam.state.value.station?.stationUuid)
+        assertEquals(1, commands.nexts)
     }
 
     @Test
@@ -97,14 +82,21 @@ class RoamAndHopTest {
         val cached = testStation("cached")
         val live = testStation("live")
         val commands = RecordingCommands()
-        val roam = RoamViewModel(
-            FakeCatalog(inCountry = listOf(listOf(cached), listOf(live))),
-            commands,
-            FakeReachability(),
-            randomIndex = { 0 },
-        )
+        val roam = roam(FakeCatalog(inCountry = listOf(listOf(cached), listOf(live))), commands)
         roam.onDialSettled((WorldDial.homeIndex + 1) % WorldDial.stops.size)
         assertEquals("cached", roam.state.value.station?.stationUuid)
         assertEquals(listOf("cached"), commands.played.map { it.stationUuid })
     }
+
+    private fun roam(
+        catalog: FakeCatalog,
+        commands: RecordingCommands,
+        coordinator: PlaybackCoordinator = PlaybackCoordinator(),
+    ) = RoamViewModel(
+        catalog = catalog,
+        commands = commands,
+        coordinator = coordinator,
+        deck = RoamDeck(catalog, FakeReachability(), FakeConnectivity(emptySet()), CoroutineScope(Dispatchers.Unconfined)),
+        randomIndex = { 0 },
+    )
 }

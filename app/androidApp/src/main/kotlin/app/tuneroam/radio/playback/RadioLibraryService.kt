@@ -34,6 +34,7 @@ import app.tuneroam.radio.domain.playback.PlayDirective
 import app.tuneroam.radio.domain.playback.PlaybackCoordinator
 import app.tuneroam.radio.domain.playback.PlaybackNotice
 import app.tuneroam.radio.domain.playback.PlaybackPhase
+import app.tuneroam.radio.domain.playback.RoamDeck
 import app.tuneroam.radio.domain.playback.SimilarStations
 import app.tuneroam.radio.domain.playback.SleepTimer
 import app.tuneroam.radio.domain.repository.FavoritesRepository
@@ -71,12 +72,14 @@ class RadioLibraryService : MediaLibraryService() {
     private val history: HistoryRepository by inject()
     private val similarStations: SimilarStations by inject()
     private val sleepTimer: SleepTimer by inject()
+    private val deck: RoamDeck by inject()
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var player: ExoPlayer
     private var librarySession: MediaLibrarySession? = null
     private var watchJob: Job? = null
     private var hopJob: Job? = null
+    private var skipJob: Job? = null
     private var failurePosted = false
     private var autoHops = 0
     private val excludedIds = mutableSetOf<String>()
@@ -122,7 +125,8 @@ class RadioLibraryService : MediaLibraryService() {
         provider.setSmallIcon(R.drawable.ic_stat_wave)
         setMediaNotificationProvider(provider)
 
-        librarySession = MediaLibrarySession.Builder(this, player, LibraryCallback())
+        val sessionPlayer = RoamingPlayer(player, onNext = ::skipToNext, onPrevious = ::skipToPrevious)
+        librarySession = MediaLibrarySession.Builder(this, sessionPlayer, LibraryCallback())
             .setSessionActivity(sessionActivity())
             .build()
 
@@ -268,7 +272,48 @@ class RadioLibraryService : MediaLibraryService() {
             // The listener may have started something else while we probed.
             if (coordinator.snapshot.value.station?.stationUuid != failed.stationUuid) return@launch
             excludedIds += next.stationUuid
+            deck.played(next, replacing = true)
             handle(coordinator.begin(next, PlaybackNotice.NEXT_SIMILAR))
+        }
+    }
+
+    /** Next and previous from any controller: the app, notification, headset, or car. */
+    private fun skipToNext() = skipTo { deck.next() }
+
+    private fun skipToPrevious() = skipTo { deck.previous() }
+
+    private fun skipTo(pick: suspend () -> Station?) {
+        skipJob?.cancel()
+        skipJob = serviceScope.launch {
+            val station = pick() ?: return@launch
+            resetForNewStation(station)
+            handle(coordinator.begin(station))
+        }
+    }
+
+    /**
+     * Item for a station a controller is about to set on the player. The coordinator
+     * picks the address and the watchdog starts here, as for [handle].
+     */
+    private fun prepareStation(station: Station): MediaItem {
+        skipJob?.cancel()
+        resetForNewStation(station)
+        val directive = coordinator.begin(station)
+        armWatchdog()
+        return mediaItemFor(station, (directive as? PlayDirective.Open)?.candidate)
+    }
+
+    /** A station the listener chose (not an automatic hop): fresh hop budget, history, click count. */
+    private fun resetForNewStation(station: Station) {
+        autoHops = 0
+        excludedIds.clear()
+        hopJob?.cancel()
+        notedStation = null
+        publishedTitle = null
+        pausedAtMs = null
+        serviceScope.launch { deck.played(station) }
+        serviceScope.launch(Dispatchers.IO) {
+            runCatching { catalog.registerClick(station.stationUuid) }
         }
     }
 
@@ -357,10 +402,6 @@ class RadioLibraryService : MediaLibraryService() {
                 .remove(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
                 .remove(Player.COMMAND_SEEK_BACK)
                 .remove(Player.COMMAND_SEEK_FORWARD)
-                .remove(Player.COMMAND_SEEK_TO_NEXT)
-                .remove(Player.COMMAND_SEEK_TO_PREVIOUS)
-                .remove(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
-                .remove(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
                 .remove(Player.COMMAND_SEEK_TO_DEFAULT_POSITION)
                 .remove(Player.COMMAND_SEEK_TO_MEDIA_ITEM)
                 .build()
@@ -374,22 +415,30 @@ class RadioLibraryService : MediaLibraryService() {
         ): ListenableFuture<MutableList<MediaItem>> {
             val source = mediaItems.firstOrNull() ?: return Futures.immediateFuture(mediaItems)
             val station = source.readStation() ?: return Futures.immediateFuture(mediaItems)
-            autoHops = 0
-            excludedIds.clear()
-            hopJob?.cancel()
-            notedStation = null
-            publishedTitle = null
-            pausedAtMs = null
-            val directive = coordinator.begin(station)
-            serviceScope.launch(Dispatchers.IO) {
-                runCatching { catalog.registerClick(station.stationUuid) }
+            return Futures.immediateFuture(mutableListOf(prepareStation(station)))
+        }
+
+        /**
+         * Play pressed on the system media controls or a headset while the app was not
+         * playing (also after a reboot): pick up the station on screen, else the last one
+         * that played.
+         */
+        override fun onPlaybackResumption(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            val future = SettableFuture.create<MediaSession.MediaItemsWithStartPosition>()
+            serviceScope.launch {
+                val station = coordinator.snapshot.value.station ?: runCatching { history.latest() }.getOrNull()
+                if (station == null) {
+                    future.setException(UnsupportedOperationException("Nothing has played yet."))
+                } else {
+                    future.set(
+                        MediaSession.MediaItemsWithStartPosition(listOf(prepareStation(station)), 0, C.TIME_UNSET),
+                    )
+                }
             }
-            val item = when (directive) {
-                is PlayDirective.Open -> mediaItemFor(station, directive.candidate)
-                else -> mediaItemFor(station, null)
-            }
-            armWatchdog()
-            return Futures.immediateFuture(mutableListOf(item))
+            return future
         }
 
         override fun onGetLibraryRoot(

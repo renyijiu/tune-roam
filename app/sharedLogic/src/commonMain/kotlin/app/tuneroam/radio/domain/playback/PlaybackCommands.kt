@@ -16,4 +16,10 @@ interface PlaybackCommands {
     fun toggle()
 
     fun pause()
+
+    /** A new station from [RoamDeck]. Same as the next button on a notification or headset. */
+    fun next()
+
+    /** Back to the station played before this one. */
+    fun previous()
 }

@@ -89,6 +89,10 @@ class OfflineFirstCatalog(
         return LoadResult.Cached(BundledCatalog.random(limit), stale = true, origin = CatalogOrigin.BUNDLED)
     }
 
+    override suspend fun byUuid(stationUuid: String): Station? =
+        runCancellable { client.byUuid(stationUuid) }.getOrNull()
+            ?: BundledCatalog.all().firstOrNull { it.stationUuid.equals(stationUuid, ignoreCase = true) }
+
     override suspend fun registerClick(stationUuid: String) {
         client.registerClick(stationUuid)
     }

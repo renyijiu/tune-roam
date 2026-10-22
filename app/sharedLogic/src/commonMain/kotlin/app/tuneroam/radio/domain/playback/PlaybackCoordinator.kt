@@ -53,6 +53,16 @@ class PlaybackCoordinator(
 
     private var session: StreamSession? = null
 
+    /**
+     * Shows [station] as the current one without opening it, e.g. the last station after
+     * a cold start. Ignored once anything else has started.
+     */
+    fun restore(station: Station) {
+        _snapshot.update { current ->
+            if (current.station != null) current else PlaybackSnapshot(station = station, phase = PlaybackPhase.IDLE)
+        }
+    }
+
     fun begin(station: Station, notice: PlaybackNotice = PlaybackNotice.NONE): PlayDirective {
         val opened = StreamSession(station.urlResolved, station.url)
         opened.markAttemptStart(clock())

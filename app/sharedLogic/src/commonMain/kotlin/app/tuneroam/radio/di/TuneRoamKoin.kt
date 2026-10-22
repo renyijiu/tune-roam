@@ -5,6 +5,7 @@ import app.tuneroam.radio.data.local.SqlFavoritesRepository
 import app.tuneroam.radio.data.local.SqlHistoryRepository
 import app.tuneroam.radio.data.local.SqlMirrorMemory
 import app.tuneroam.radio.data.local.SqlReachabilityRepository
+import app.tuneroam.radio.data.local.SqlTrackRepository
 import app.tuneroam.radio.data.local.TuneRoamDatabase
 import app.tuneroam.radio.data.remote.KtorStationConnectivity
 import app.tuneroam.radio.data.remote.MirrorMemory
@@ -12,6 +13,7 @@ import app.tuneroam.radio.data.remote.RadioBrowserClient
 import app.tuneroam.radio.data.remote.ServerDirectory
 import app.tuneroam.radio.data.repository.OfflineFirstCatalog
 import app.tuneroam.radio.domain.playback.PlaybackCoordinator
+import app.tuneroam.radio.domain.playback.RoamDeck
 import app.tuneroam.radio.domain.playback.SimilarStations
 import app.tuneroam.radio.domain.playback.SleepTimer
 import app.tuneroam.radio.domain.repository.FavoritesRepository
@@ -19,6 +21,7 @@ import app.tuneroam.radio.domain.repository.HistoryRepository
 import app.tuneroam.radio.domain.repository.RadioCatalog
 import app.tuneroam.radio.domain.repository.ReachabilityRepository
 import app.tuneroam.radio.domain.repository.StationConnectivity
+import app.tuneroam.radio.domain.repository.TrackRepository
 import org.koin.core.module.Module
 import org.koin.dsl.module
 
@@ -37,10 +40,12 @@ private val dataModule = module {
     single<FavoritesRepository> { SqlFavoritesRepository(get()) }
     single<ReachabilityRepository> { SqlReachabilityRepository(get()) }
     single<HistoryRepository> { SqlHistoryRepository(get()) }
+    single<TrackRepository> { SqlTrackRepository(get()) }
     single<StationConnectivity> { KtorStationConnectivity(get()) }
     single<RadioCatalog> { OfflineFirstCatalog(get(), get()) }
     single { PlaybackCoordinator() }
     single { SimilarStations(get(), get(), get()) }
+    single { RoamDeck(get(), get(), get()) }
     single { SleepTimer() }
 }
 
