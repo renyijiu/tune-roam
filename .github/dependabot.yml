@@ -1,0 +1,21 @@
+# Weekly version bumps for Gradle (gradle/libs.versions.toml) and the workflow actions.
+# Each PR runs CI like any other.
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      androidx:
+        patterns: ["androidx.*"]
+      kotlin:
+        patterns: ["org.jetbrains.kotlin*", "org.jetbrains.kotlinx*"]
+      ktor:
+        patterns: ["io.ktor*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
