@@ -1,6 +1,7 @@
 package app.tuneroam.radio
 
 import app.tuneroam.radio.data.remote.BundledCatalog
+import app.tuneroam.radio.data.remote.FallbackCatalog
 import app.tuneroam.radio.domain.catalog.ReachScore
 import app.tuneroam.radio.domain.catalog.WorldDial
 import app.tuneroam.radio.domain.catalog.applyChinaFilter
@@ -57,7 +58,7 @@ class CatalogPolicyTest {
         assertTrue(stations.any { it.countryCode == "SG" })
         assertTrue(stations.all { it.stationUuid.isNotBlank() && (it.url.isNotBlank() || it.urlResolved.isNotBlank()) })
         val sample = stations.first { it.countryCode == "CN" }
-        assertTrue(BundledCatalog.similar(sample).none { it.stationUuid == sample.stationUuid })
+        assertTrue(FallbackCatalog(BundledCatalog::all).similar(sample).none { it.stationUuid == sample.stationUuid })
     }
 
     @Test
