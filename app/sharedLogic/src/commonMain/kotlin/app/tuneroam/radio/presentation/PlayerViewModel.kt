@@ -13,6 +13,7 @@ import app.tuneroam.radio.domain.playback.SleepTimer
 import app.tuneroam.radio.domain.repository.FavoritesRepository
 import app.tuneroam.radio.domain.repository.HistoryRepository
 import app.tuneroam.radio.domain.repository.RadioCatalog
+import app.tuneroam.radio.domain.repository.lookUp
 import app.tuneroam.radio.domain.repository.observeIds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -83,7 +84,7 @@ class PlayerViewModel(
         linkJob?.cancel()
         linkJob = viewModelScope.launch {
             _hint.value = PlayerHint.OPENING_LINK
-            val station = favorites.list().firstOrNull { it.stationUuid == uuid } ?: catalog.byUuid(uuid)
+            val station = catalog.lookUp(uuid, favorites)
             if (station == null) {
                 _hint.value = PlayerHint.LINK_NOT_FOUND
             } else {

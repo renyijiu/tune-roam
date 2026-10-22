@@ -46,6 +46,7 @@ import app.tuneroam.radio.domain.repository.HistoryRepository
 import app.tuneroam.radio.domain.repository.RadioCatalog
 import app.tuneroam.radio.domain.repository.ReachabilityRepository
 import app.tuneroam.radio.domain.repository.SettingsRepository
+import app.tuneroam.radio.domain.repository.lookUp
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -434,8 +435,20 @@ class RadioLibraryService : MediaLibraryService() {
             mediaItems: MutableList<MediaItem>,
         ): ListenableFuture<MutableList<MediaItem>> {
             val source = mediaItems.firstOrNull() ?: return Futures.immediateFuture(mediaItems)
-            val station = source.readStation() ?: return Futures.immediateFuture(mediaItems)
-            return Futures.immediateFuture(mutableListOf(prepareStation(station)))
+            source.readStation()?.let { return Futures.immediateFuture(mutableListOf(prepareStation(it))) }
+            // Legacy browsers (car head units, system media controls) send back only the
+            // media id of a browsed station, without the station extras.
+            val uuid = LibraryTree.stationUuid(source.mediaId) ?: return Futures.immediateFuture(mediaItems)
+            val future = SettableFuture.create<MutableList<MediaItem>>()
+            serviceScope.launch {
+                val station = runCatching { catalog.lookUp(uuid, favorites) }.getOrNull()
+                if (station == null) {
+                    future.setException(IllegalArgumentException("Unknown station $uuid"))
+                } else {
+                    future.set(mutableListOf(prepareStation(station)))
+                }
+            }
+            return future
         }
 
         /**

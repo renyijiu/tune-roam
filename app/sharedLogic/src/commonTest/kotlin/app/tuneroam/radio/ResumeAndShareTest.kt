@@ -6,6 +6,7 @@ import app.tuneroam.radio.domain.playback.PlaybackPhase
 import app.tuneroam.radio.domain.playback.RoamDeck
 import app.tuneroam.radio.domain.playback.SimilarStations
 import app.tuneroam.radio.domain.playback.SleepTimer
+import app.tuneroam.radio.domain.repository.lookUp
 import app.tuneroam.radio.presentation.PlayerHint
 import app.tuneroam.radio.presentation.PlayerViewModel
 import kotlin.test.AfterTest
@@ -90,6 +91,18 @@ class ResumeAndShareTest {
         assertEquals(PlayerHint.LINK_NOT_FOUND, player.hint.value)
         player.openLink("tuneroam://station/garbage")
         assertEquals(PlayerHint.LINK_NOT_FOUND, player.hint.value)
+    }
+
+    @Test
+    fun lookUpPrefersTheSavedStationThenTheCatalog() = runTest {
+        val saved = testStation(uuid, country = "Japan")
+        val listed = testStation("listed")
+        val catalog = FakeCatalog(random = listOf(testStation(uuid, country = "Brazil"), listed))
+        val favorites = FakeFavorites(listOf(saved))
+
+        assertEquals("Japan", catalog.lookUp(uuid.uppercase(), favorites)?.country)
+        assertEquals(listed, catalog.lookUp("listed", favorites))
+        assertNull(catalog.lookUp("missing", favorites))
     }
 
     private fun player(
