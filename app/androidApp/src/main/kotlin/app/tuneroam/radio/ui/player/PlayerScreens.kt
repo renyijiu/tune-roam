@@ -19,8 +19,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,12 +39,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -94,7 +90,6 @@ import app.tuneroam.radio.ui.theme.rememberReducedMotion
 import app.tuneroam.radio.ui.theme.sharedArtwork
 import java.util.Locale
 import kotlin.math.sin
-import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
 
 /** The full-screen aurora behind Now Playing, in the playing station's colors. */
@@ -406,7 +401,7 @@ fun NowPlayingScreen(
                 Text(stringResource(R.string.next_similar))
             }
         }
-        SleepRow(viewModel)
+        SleepTimerControl(viewModel, Modifier.padding(top = 24.dp))
     }
 }
 
@@ -478,53 +473,6 @@ private fun PlayButton(playing: Boolean, size: Int, onClick: () -> Unit, glow: C
             color = MaterialTheme.colorScheme.onPrimary,
             modifier = Modifier.size((size * 0.46f).dp),
         )
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun SleepRow(viewModel: PlayerViewModel) {
-    val deadline by viewModel.sleepDeadlineMs.collectAsStateWithLifecycle()
-    // Re-read the clock every few seconds so the minutes count down on screen.
-    val now by produceState(System.currentTimeMillis(), deadline) {
-        while (deadline != null) {
-            value = System.currentTimeMillis()
-            delay(5_000)
-        }
-    }
-    val remaining = deadline?.let { end ->
-        ((end - now + 59_999L) / 60_000L).toInt().coerceAtLeast(1)
-    }
-    Text(
-        text = if (remaining == null) {
-            stringResource(R.string.sleep_heading)
-        } else {
-            stringResource(R.string.sleep_remaining, remaining)
-        },
-        modifier = Modifier.padding(top = 22.dp),
-        style = MaterialTheme.typography.titleMedium,
-    )
-    FlowRow(
-        modifier = Modifier.padding(top = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        listOf(
-            null to R.string.sleep_off,
-            15 to R.string.sleep_15,
-            30 to R.string.sleep_30,
-            60 to R.string.sleep_60,
-        ).forEach { (minutes, label) ->
-            OutlinedButton(
-                onClick = { viewModel.setSleep(minutes) },
-                shape = RoundedCornerShape(16.dp),
-            ) {
-                Text(
-                    text = stringResource(label),
-                    color = if (minutes == null && deadline == null) Signal else MaterialTheme.colorScheme.onSurface,
-                )
-            }
-        }
     }
 }
 

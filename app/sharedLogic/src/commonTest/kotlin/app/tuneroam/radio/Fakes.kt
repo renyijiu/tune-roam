@@ -46,8 +46,12 @@ internal class FakeCatalog(
     override fun popular(hideBroken: Boolean, limit: Int): Flow<LoadResult<List<Station>>> =
         flowOf(LoadResult.Fresh(emptyList()))
 
-    override fun search(query: CatalogQuery): Flow<LoadResult<List<Station>>> =
-        flowOf(LoadResult.Fresh(emptyList()))
+    val searches = mutableListOf<CatalogQuery>()
+
+    override fun search(query: CatalogQuery): Flow<LoadResult<List<Station>>> {
+        searches += query
+        return flowOf(LoadResult.Fresh(emptyList()))
+    }
 
     override fun countries(): Flow<LoadResult<List<Country>>> = flowOf(LoadResult.Fresh(emptyList()))
 

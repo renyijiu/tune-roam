@@ -10,6 +10,7 @@ import app.tuneroam.radio.presentation.PlayerViewModel
 import app.tuneroam.radio.presentation.RoamViewModel
 import app.tuneroam.radio.presentation.SettingsViewModel
 import app.tuneroam.radio.presentation.TracksViewModel
+import app.tuneroam.radio.snapshot.SnapshotScheduler
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
@@ -24,6 +25,7 @@ import org.koin.dsl.module
  */
 val androidAppModule = module {
     single<PlaybackCommands> { MediaSessionCommands(androidContext()) }
+    single { SnapshotScheduler(androidContext(), get()) }
     viewModel { HomeViewModel(get(), get(), get(), get(), get()) }
     viewModel { RoamViewModel(get(), get(), get(), get()) }
     viewModel { CountriesViewModel(get()) }
@@ -37,6 +39,6 @@ val androidAppModule = module {
     }
     viewModel { FavoritesViewModel(get(), get(), get()) }
     viewModel { TracksViewModel(get(), get()) }
-    viewModel { SettingsViewModel(get(), get()) }
+    viewModel { SettingsViewModel(get(), get(), get()) }
     viewModel { PlayerViewModel(get(), get(), get(), get(), get(), get(), get(), get()) }
 }
