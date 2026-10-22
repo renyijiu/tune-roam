@@ -67,16 +67,15 @@ object BundledCatalog {
                 other.stationUuid != station.stationUuid &&
                     (other.country.equals(station.country, ignoreCase = true) ||
                         (station.countryCode.isNotBlank() && other.countryCode.equals(station.countryCode, ignoreCase = true)) ||
-                        sharesChinese(other, station))
+                        bothChinese(other, station))
             }
         }
         return pool.respecting(true).sortedByDescending { it.clickCount }.take(20)
     }
 
-    private fun sharesChinese(station: Station, other: Station): Boolean {
-        val chinese = listOf(station.language, other.language).all { it.contains("chinese", ignoreCase = true) }
-        return chinese
-    }
+    private fun bothChinese(station: Station, other: Station): Boolean =
+        station.language.contains("chinese", ignoreCase = true) &&
+            other.language.contains("chinese", ignoreCase = true)
 
     private fun matchesCountry(station: Station, text: String): Boolean {
         val typed = text.trim()

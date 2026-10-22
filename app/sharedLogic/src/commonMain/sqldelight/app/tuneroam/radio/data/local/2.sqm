@@ -1,3 +1,0 @@
--- Free-text searches are no longer cached. Drop the buckets earlier versions left behind.
-DELETE FROM cachedStation
-WHERE bucket LIKE 'search:%';

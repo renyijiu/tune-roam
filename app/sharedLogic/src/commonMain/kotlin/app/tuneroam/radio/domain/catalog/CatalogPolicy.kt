@@ -2,13 +2,9 @@ package app.tuneroam.radio.domain.catalog
 
 import app.tuneroam.radio.domain.model.Station
 
-/** Remembered host first, then whatever discovery returned, then the built-in list. */
-fun mirrorHosts(remembered: String?, discovered: List<String>, known: List<String>): List<String> =
-    buildList {
-        remembered?.trim()?.takeIf { it.isNotEmpty() }?.let(::add)
-        addAll(discovered)
-        addAll(known)
-    }.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+/** Remembered host first, then the built-in list. */
+fun mirrorHosts(remembered: String?, known: List<String>): List<String> =
+    (listOfNotNull(remembered) + known).map { it.trim() }.filter { it.isNotEmpty() }.distinct()
 
 data class ReachScore(
     val successes: Int = 0,

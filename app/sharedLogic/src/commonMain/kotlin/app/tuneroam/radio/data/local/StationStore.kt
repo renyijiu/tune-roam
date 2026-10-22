@@ -208,7 +208,7 @@ class SqlHistoryRepository(
     }
 }
 
-/** [AppSettings] as one JSON row. A row that no longer parses falls back to the defaults. */
+/** [AppSettings] as one JSON row. A row that does not parse reads as the defaults. */
 class SqlSettingsRepository(
     private val database: TuneRoamDatabase,
 ) : SettingsRepository {
