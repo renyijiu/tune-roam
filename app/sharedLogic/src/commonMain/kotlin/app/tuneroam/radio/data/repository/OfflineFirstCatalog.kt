@@ -2,7 +2,7 @@ package app.tuneroam.radio.data.repository
 
 import app.tuneroam.radio.core.runCancellable
 import app.tuneroam.radio.data.local.CatalogCache
-import app.tuneroam.radio.data.remote.BundledCatalog
+import app.tuneroam.radio.data.remote.FallbackCatalog
 import app.tuneroam.radio.data.remote.RadioBrowserClient
 import app.tuneroam.radio.data.remote.RadioHttpException
 import app.tuneroam.radio.domain.model.CatalogOrigin
@@ -20,9 +20,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.withContext
 
 /**
- * Cache (or the bundled snapshot) first, then the live catalog.
+ * Cache (or the offline snapshot) first, then the live catalog. The offline snapshot is
+ * the downloaded one when there is one, else the one packed into the APK.
  *
  * Popular, countries, and per-country lists are kept in SQL because they are a small,
  * bounded set. Free-text searches are not: every query would leave its own bucket
@@ -31,12 +33,13 @@ import kotlinx.coroutines.flow.flowOn
 class OfflineFirstCatalog(
     private val client: RadioBrowserClient,
     private val cache: CatalogCache,
+    private val fallback: FallbackCatalog,
 ) : RadioCatalog {
     override fun popular(hideBroken: Boolean, limit: Int): Flow<LoadResult<List<Station>>> =
         cached(
             read = { cache.readStations("popular:$hideBroken:$limit") },
             write = { cache.writeStations("popular:$hideBroken:$limit", it) },
-            bundled = { BundledCatalog.popular(limit, hideBroken) },
+            bundled = { fallback.popular(limit, hideBroken) },
             fetch = { client.topClicked(limit, hideBroken) },
         )
 
@@ -44,7 +47,7 @@ class OfflineFirstCatalog(
         cached(
             read = { emptyList() },
             write = {},
-            bundled = { BundledCatalog.search(query) },
+            bundled = { fallback.search(query) },
             fetch = { client.search(query) },
         )
 
@@ -52,7 +55,7 @@ class OfflineFirstCatalog(
         cached(
             read = { cache.readCountries() },
             write = { cache.writeCountries(it) },
-            bundled = { BundledCatalog.countries() },
+            bundled = { fallback.countries() },
             fetch = { client.countries() },
         )
 
@@ -61,7 +64,7 @@ class OfflineFirstCatalog(
         return cached(
             read = { cache.readStations(bucket) },
             write = { cache.writeStations(bucket, it) },
-            bundled = { BundledCatalog.inCountry(country, hideBroken) },
+            bundled = { fallback.inCountry(country, hideBroken) },
             fetch = {
                 client.search(
                     CatalogQuery(country = country.trim(), hideBroken = hideBroken, limit = 100),
@@ -75,7 +78,7 @@ class OfflineFirstCatalog(
             client.search(similarQuery(station)).filter { it.stationUuid != station.stationUuid }.take(20)
         }
         live.getOrNull()?.takeIf { it.isNotEmpty() }?.let { return LoadResult.Fresh(it) }
-        val bundled = BundledCatalog.similar(station)
+        val bundled = withContext(Dispatchers.IO) { fallback.similar(station) }
         val error = live.exceptionOrNull()
         return if (bundled.isEmpty() && error != null) {
             LoadResult.Failed(error.toReason())
@@ -89,13 +92,15 @@ class OfflineFirstCatalog(
         val fetch = if (filter.isActive) (limit * 3).coerceAtMost(MAX_RANDOM_FETCH) else limit
         val live = runCancellable { client.random(fetch, filter).take(limit) }
         live.getOrNull()?.takeIf { it.isNotEmpty() }?.let { return LoadResult.Fresh(it) }
-        val bundled = BundledCatalog.random(BundledCatalog.all().size).filter(filter::matches).take(limit)
+        val bundled = withContext(Dispatchers.IO) { fallback.random(fallback.all().size) }.filter(filter::matches).take(limit)
         return LoadResult.Cached(bundled, stale = true, origin = CatalogOrigin.BUNDLED)
     }
 
     override suspend fun byUuid(stationUuid: String): Station? =
         runCancellable { client.byUuid(stationUuid) }.getOrNull()
-            ?: BundledCatalog.all().firstOrNull { it.stationUuid.equals(stationUuid, ignoreCase = true) }
+            ?: withContext(Dispatchers.IO) {
+                fallback.all().firstOrNull { it.stationUuid.equals(stationUuid, ignoreCase = true) }
+            }
 
     override suspend fun registerClick(stationUuid: String) {
         client.registerClick(stationUuid)
@@ -128,7 +133,7 @@ private inline fun <T> cached(
         }
 }.flowOn(Dispatchers.IO)
 
-private fun Throwable.toReason(): FailureReason = when (this) {
+internal fun Throwable.toReason(): FailureReason = when (this) {
     is HttpRequestTimeoutException, is ConnectTimeoutException -> FailureReason.TIMEOUT
     is RadioHttpException -> if (code in 500..599) FailureReason.SERVER else FailureReason.NETWORK
     else -> FailureReason.NETWORK
