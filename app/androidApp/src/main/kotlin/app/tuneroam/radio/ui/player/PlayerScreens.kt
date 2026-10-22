@@ -1,13 +1,21 @@
 package app.tuneroam.radio.ui.player
 
 import android.content.Intent
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +23,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -22,33 +31,41 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.tuneroam.radio.R
 import app.tuneroam.radio.domain.playback.PlaybackNotice
@@ -62,9 +79,40 @@ import app.tuneroam.radio.ui.components.HealthDot
 import app.tuneroam.radio.ui.components.SaveTrackButton
 import app.tuneroam.radio.ui.components.SearchTrackButton
 import app.tuneroam.radio.ui.components.StationMark
+import app.tuneroam.radio.ui.fx.AuroraBackground
+import app.tuneroam.radio.ui.fx.DecodeText
+import app.tuneroam.radio.ui.fx.EqualizerBars
+import app.tuneroam.radio.ui.fx.PlayPauseGlyph
+import app.tuneroam.radio.ui.fx.SignalOrb
+import app.tuneroam.radio.ui.fx.drawSignalTrace
+import app.tuneroam.radio.ui.fx.rememberStationColors
 import app.tuneroam.radio.ui.theme.Signal
+import app.tuneroam.radio.ui.theme.animationClock
+import app.tuneroam.radio.ui.theme.popOnChange
+import app.tuneroam.radio.ui.theme.pressSquish
+import app.tuneroam.radio.ui.theme.rememberReducedMotion
+import app.tuneroam.radio.ui.theme.sharedArtwork
+import java.util.Locale
+import kotlin.math.sin
 import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
+
+/** The full-screen aurora behind Now Playing, in the playing station's colors. */
+@Composable
+fun PlayerBackdrop(snapshot: PlaybackSnapshot, modifier: Modifier = Modifier) {
+    val (primary, secondary) = rememberStationColors(snapshot.station)
+    val energy by animateFloatAsState(
+        targetValue = if (snapshot.phase == PlaybackPhase.PLAYING) 1f else 0.25f,
+        animationSpec = tween(1_200),
+        label = "aurora-energy",
+    )
+    AuroraBackground(
+        primary = { primary.value },
+        secondary = { secondary.value },
+        energy = { energy },
+        modifier = modifier,
+    )
+}
 
 @Composable
 fun MiniPlayerBar(
@@ -73,24 +121,63 @@ fun MiniPlayerBar(
 ) {
     val playback by viewModel.playback.collectAsStateWithLifecycle()
     val station = playback.station ?: return
+    val (primary, _) = rememberStationColors(station)
+    val playing = playback.phase == PlaybackPhase.PLAYING
+    val reduced = rememberReducedMotion()
+    val time = animationClock(running = !reduced && (playing || playback.phase == PlaybackPhase.CONNECTING))
+    val noise by animateFloatAsState(
+        targetValue = if (playback.phase == PlaybackPhase.CONNECTING) 0.9f else 0f,
+        animationSpec = tween(500),
+        label = "mini-noise",
+    )
+    val shape = RoundedCornerShape(22.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .clip(shape)
+            .background(
+                Brush.horizontalGradient(
+                    listOf(primary.value.copy(alpha = 0.22f), MaterialTheme.colorScheme.surfaceVariant),
+                ),
+            )
+            .border(1.dp, primary.value.copy(alpha = 0.25f), shape)
             .clickable(onClick = onOpen)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .drawBehind {
+                // A live signal line along the bottom edge: static while connecting, a carrier once on air.
+                drawSignalTrace(
+                    center = Offset(size.width / 2f, size.height - 3.dp.toPx()),
+                    width = size.width * 0.9f,
+                    amplitude = 2.5.dp.toPx(),
+                    time = time.value,
+                    noise = noise,
+                    locked = primary.value.copy(alpha = if (playing) 0.7f else 0.25f),
+                    static = Color.White.copy(alpha = 0.5f),
+                )
+            }
+            .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        StationMark(station, Modifier.size(40.dp))
+        StationMark(station, Modifier.size(42.dp).sharedArtwork(station.stationUuid))
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = station.name,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                EqualizerBars(
+                    playing = playing,
+                    color = primary.value,
+                    modifier = Modifier.size(width = 14.dp, height = 12.dp),
+                )
+                Text(
+                    text = station.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            DecodeText(
                 text = playback.icyTitle ?: station.country.ifBlank { stringResource(R.string.now_playing) },
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (playback.icyTitle != null) Signal else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -98,7 +185,7 @@ fun MiniPlayerBar(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        PlayPauseButton(playing = playback.phase == PlaybackPhase.PLAYING, onClick = viewModel::togglePlay)
+        PlayButton(playing = playing, size = 44, onClick = viewModel::togglePlay)
         IconButton(onClick = viewModel::next) {
             Icon(Icons.Filled.SkipNext, contentDescription = stringResource(R.string.next_station))
         }
@@ -117,6 +204,9 @@ fun NowPlayingScreen(
     val hint by viewModel.hint.collectAsStateWithLifecycle()
     val canGoBack by viewModel.canGoBack.collectAsStateWithLifecycle()
     val station = playback.station
+    val (primary, secondary) = rememberStationColors(station)
+    // Which way the last skip went, so the next station slides in from that side.
+    var direction by remember { mutableIntStateOf(1) }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -128,11 +218,13 @@ fun NowPlayingScreen(
         val shareTitle = stringResource(R.string.share_station)
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.back))
             }
             Text(
-                stringResource(R.string.now_playing),
-                style = MaterialTheme.typography.titleMedium,
+                stringResource(R.string.now_playing).uppercase(Locale.getDefault()),
+                style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 3.sp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
                 modifier = Modifier.weight(1f),
             )
             if (station != null) {
@@ -147,6 +239,8 @@ fun NowPlayingScreen(
                 ) {
                     Icon(Icons.Filled.Share, contentDescription = shareTitle)
                 }
+            } else {
+                Box(Modifier.size(48.dp))
             }
         }
         if (station == null) {
@@ -160,32 +254,47 @@ fun NowPlayingScreen(
             return
         }
         val playing = playback.phase == PlaybackPhase.PLAYING
-        val pulse = if (playing) pulseScale() else 1f
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(top = 12.dp)) {
-            Box(
-                modifier = Modifier
-                    .size(220.dp)
-                    .scale(pulse)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
-            )
-            StationMark(station, Modifier.size(188.dp))
+        SignalOrb(
+            phase = playback.phase,
+            primary = { primary.value },
+            secondary = { secondary.value },
+            modifier = Modifier.size(340.dp),
+        ) {
+            AnimatedContent(
+                targetState = station,
+                contentKey = { it.stationUuid },
+                transitionSpec = {
+                    (fadeIn(tween(280, delayMillis = 100)) + scaleIn(tween(380), initialScale = 0.6f)) togetherWith
+                        (fadeOut(tween(160)) + scaleOut(tween(220), targetScale = 1.3f))
+                },
+                label = "artwork",
+            ) { shown ->
+                StationMark(shown, Modifier.size(196.dp).sharedArtwork(shown.stationUuid))
+            }
         }
-        Text(
-            text = station.name,
-            modifier = Modifier.padding(top = 22.dp, start = 24.dp, end = 24.dp),
-            style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.Center,
-        )
-        if (station.country.isNotBlank()) {
+        OnAirLine(playback, Modifier.padding(top = 2.dp))
+        AnimatedContent(
+            targetState = station,
+            contentKey = { it.stationUuid },
+            transitionSpec = {
+                val dir = direction
+                (slideInHorizontally(tween(320)) { it / 3 * dir } + fadeIn(tween(320))) togetherWith
+                    (slideOutHorizontally(tween(220)) { -it / 3 * dir } + fadeOut(tween(180))) using
+                    SizeTransform(clip = false)
+            },
+            label = "station-name",
+        ) { shown ->
             Text(
-                text = station.country,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyLarge,
+                text = shown.name,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp, start = 24.dp, end = 24.dp),
+                style = MaterialTheme.typography.headlineMedium.copy(fontSize = 30.sp, lineHeight = 34.sp),
+                textAlign = TextAlign.Center,
             )
         }
         playback.icyTitle?.let { title ->
-            Text(
+            DecodeText(
                 text = title,
                 modifier = Modifier.padding(top = 10.dp, start = 28.dp, end = 28.dp),
                 color = Signal,
@@ -198,7 +307,57 @@ fun NowPlayingScreen(
             }
         }
         Row(
-            modifier = Modifier.padding(top = 14.dp),
+            modifier = Modifier.padding(top = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            IconButton(onClick = viewModel::toggleFavorite) {
+                Icon(
+                    imageVector = if (favorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                    contentDescription = stringResource(
+                        if (favorite) R.string.favorite_remove else R.string.favorite_add,
+                    ),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .size(28.dp)
+                        .popOnChange(favorite),
+                )
+            }
+            IconButton(
+                onClick = {
+                    direction = -1
+                    viewModel.previous()
+                },
+                enabled = canGoBack,
+            ) {
+                Icon(
+                    Icons.Filled.SkipPrevious,
+                    contentDescription = stringResource(R.string.previous_station),
+                    modifier = Modifier.size(34.dp),
+                )
+            }
+            PlayButton(
+                playing = playing,
+                size = 78,
+                onClick = viewModel::togglePlay,
+                glow = primary.value,
+            )
+            IconButton(
+                onClick = {
+                    direction = 1
+                    viewModel.next()
+                },
+            ) {
+                Icon(
+                    Icons.Filled.SkipNext,
+                    contentDescription = stringResource(R.string.next_station),
+                    modifier = Modifier.size(34.dp),
+                )
+            }
+            Box(Modifier.size(48.dp))
+        }
+        Row(
+            modifier = Modifier.padding(top = 18.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -237,47 +396,6 @@ fun NowPlayingScreen(
             PlayerHint.OPENING_LINK, PlayerHint.LINK_NOT_FOUND -> LinkHint(hint)
             null -> Unit
         }
-        Row(
-            modifier = Modifier.padding(top = 22.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            IconButton(onClick = viewModel::toggleFavorite) {
-                Icon(
-                    imageVector = if (favorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    contentDescription = stringResource(
-                        if (favorite) R.string.favorite_remove else R.string.favorite_add,
-                    ),
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(28.dp),
-                )
-            }
-            IconButton(onClick = viewModel::previous, enabled = canGoBack) {
-                Icon(
-                    Icons.Filled.SkipPrevious,
-                    contentDescription = stringResource(R.string.previous_station),
-                    modifier = Modifier.size(32.dp),
-                )
-            }
-            FilledIconButton(
-                onClick = viewModel::togglePlay,
-                modifier = Modifier.size(72.dp),
-            ) {
-                Icon(
-                    imageVector = if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = stringResource(if (playing) R.string.pause else R.string.play),
-                    modifier = Modifier.size(36.dp),
-                )
-            }
-            IconButton(onClick = viewModel::next) {
-                Icon(
-                    Icons.Filled.SkipNext,
-                    contentDescription = stringResource(R.string.next_station),
-                    modifier = Modifier.size(32.dp),
-                )
-            }
-            Box(Modifier.size(48.dp))
-        }
         if (playback.notice == PlaybackNotice.UNAVAILABLE || playback.phase == PlaybackPhase.FAILED) {
             Button(
                 onClick = viewModel::playSimilar,
@@ -289,6 +407,77 @@ fun NowPlayingScreen(
             }
         }
         SleepRow(viewModel)
+    }
+}
+
+/** "● ON AIR · Country" with a blinking dot while the stream plays. */
+@Composable
+private fun OnAirLine(playback: PlaybackSnapshot, modifier: Modifier = Modifier) {
+    val station = playback.station ?: return
+    val playing = playback.phase == PlaybackPhase.PLAYING
+    val reduced = rememberReducedMotion()
+    val time = animationClock(running = playing && !reduced)
+    val live = MaterialTheme.colorScheme.error
+    val label = stringResource(if (playing) R.string.roam_status_on_air else R.string.now_playing)
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(
+            Modifier
+                .size(7.dp)
+                .drawBehind {
+                    val alpha = if (playing) 0.35f + 0.65f * (0.5f + 0.5f * sin(time.value * 5f)) else 0.4f
+                    drawCircle((if (playing) live else Color.White).copy(alpha = alpha))
+                },
+        )
+        Text(
+            text = listOfNotNull(
+                label.uppercase(Locale.getDefault()),
+                station.country.takeIf { it.isNotBlank() },
+            ).joinToString("  ·  "),
+            style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 1.5.sp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** A round play button whose glyph folds between play and pause; it glows while playing. */
+@Composable
+private fun PlayButton(playing: Boolean, size: Int, onClick: () -> Unit, glow: Color? = null) {
+    val press = remember { MutableInteractionSource() }
+    val description = stringResource(if (playing) R.string.pause else R.string.play)
+    val shine by animateFloatAsState(if (playing && glow != null) 1f else 0f, tween(600), label = "shine")
+    Box(
+        modifier = Modifier
+            .size(size.dp)
+            .pressSquish(press)
+            .drawBehind {
+                if (glow != null && shine > 0f) {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            listOf(glow.copy(alpha = 0.45f * shine), Color.Transparent),
+                            radius = this.size.minDimension * 0.9f,
+                        ),
+                        radius = this.size.minDimension * 0.9f,
+                    )
+                }
+            }
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primary)
+            .clickable(interactionSource = press, indication = null, onClick = onClick)
+            .semantics {
+                role = Role.Button
+                contentDescription = description
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        PlayPauseGlyph(
+            playing = playing,
+            color = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier.size((size * 0.46f).dp),
+        )
     }
 }
 
@@ -376,26 +565,4 @@ private fun Notice(playback: PlaybackSnapshot) {
         },
         textAlign = TextAlign.Center,
     )
-}
-
-@Composable
-private fun PlayPauseButton(playing: Boolean, onClick: () -> Unit) {
-    FilledIconButton(onClick = onClick) {
-        Icon(
-            imageVector = if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-            contentDescription = stringResource(if (playing) R.string.pause else R.string.play),
-        )
-    }
-}
-
-@Composable
-private fun pulseScale(): Float {
-    val transition = rememberInfiniteTransition(label = "on-air")
-    val scale by transition.animateFloat(
-        initialValue = 0.97f,
-        targetValue = 1.04f,
-        animationSpec = infiniteRepeatable(tween(1400), RepeatMode.Reverse),
-        label = "scale",
-    )
-    return scale
 }

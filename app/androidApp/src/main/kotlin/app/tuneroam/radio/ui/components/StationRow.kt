@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,10 +22,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.tuneroam.radio.R
 import app.tuneroam.radio.domain.model.FailureReason
 import app.tuneroam.radio.domain.model.Station
@@ -85,16 +88,26 @@ fun StationRow(
 @Composable
 fun StationMark(station: Station, modifier: Modifier = Modifier) {
     val url = station.favicon.takeIf { it.startsWith("http") }
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant),
+            .background(
+                Brush.linearGradient(
+                    listOf(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.surface),
+                ),
+            ),
         contentAlignment = Alignment.Center,
     ) {
         if (url == null) {
+            // The initial scales with the mark, from a list row up to the Now Playing orb.
             Text(
                 text = station.name.take(1).uppercase(),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = MaterialTheme.typography.displaySmall.fontFamily,
+                    fontSize = (maxWidth.value * 0.42f).sp,
+                    lineHeight = (maxWidth.value * 0.42f).sp,
+                ),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
             )
         } else {
             AsyncImage(

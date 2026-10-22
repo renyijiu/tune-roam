@@ -49,11 +49,15 @@
     <string name="using_original_url">Playing the station\'s original address.</string>
     <string name="tab_roam">Roam</string>
     <string name="roam_title">Roam</string>
-    <string name="roam_hint">Drag the dial. When it stops, a station from that country starts.</string>
+    <string name="roam_hint">Spin the globe. When it stops, a station from that country starts.</string>
     <string name="roam_land">Play this station</string>
     <string name="roam_shuffle">Random station</string>
     <string name="roam_empty">No playable station for this country in the saved catalog.</string>
     <string name="roam_loading">Finding a station…</string>
+    <string name="roam_status_scanning">Scanning</string>
+    <string name="roam_status_connecting">Connecting</string>
+    <string name="roam_status_locked">Locked</string>
+    <string name="roam_status_on_air">On air</string>
     <string name="bundle_catalog">The live catalog can\'t be reached. These stations shipped with the app, including Chinese-language stations.</string>
     <string name="china_only">China-reachable on this phone</string>
     <string name="probe_list">Probe these stations</string>

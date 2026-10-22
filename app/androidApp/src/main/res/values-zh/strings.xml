@@ -49,11 +49,15 @@
     <string name="using_original_url">正在使用电台原始地址。</string>
     <string name="tab_roam">漫游</string>
     <string name="roam_title">漫游</string>
-    <string name="roam_hint">拨动表盘。停下来时，会从那个国家放一座能播的电台。</string>
+    <string name="roam_hint">转动地球。停下来时，会从那个国家放一座能播的电台。</string>
     <string name="roam_land">播放这座</string>
     <string name="roam_shuffle">随便一座</string>
     <string name="roam_empty">附带目录里没有这个国家可播的电台。</string>
     <string name="roam_loading">正在找一座电台…</string>
+    <string name="roam_status_scanning">搜索中</string>
+    <string name="roam_status_connecting">连接中</string>
+    <string name="roam_status_locked">已锁定</string>
+    <string name="roam_status_on_air">正在播出</string>
     <string name="bundle_catalog">实时目录连不上。下面是随应用附带的电台，包含大陆、香港、台湾和新加坡的中文台。</string>
     <string name="china_only">只看这台手机连通过的</string>
     <string name="probe_list">探测这几座</string>
