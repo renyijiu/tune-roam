@@ -73,6 +73,12 @@ object RadioPayloads {
                 )
             }
             .filter { it.name.isNotBlank() }
+            // The API can list a name more than once (also after trimming), and the cache
+            // keys countries by name, so fold repeats into one row.
+            .groupBy { it.name }
+            .map { (_, same) ->
+                same.maxBy { it.stationCount }.copy(stationCount = same.sumOf { it.stationCount })
+            }
             .sortedByDescending { it.stationCount }
 
     fun serverNames(json: String): List<String> =
