@@ -21,8 +21,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -142,7 +142,7 @@ fun TuneRoamApp(
                         ) {
                             NavigationBar {
                                 NavItem(Routes.ROAM, R.string.tab_roam, route == Routes.ROAM, Icons.Filled.Explore, navController)
-                                NavItem(Routes.HOME, R.string.tab_home, route == Routes.HOME, Icons.Filled.Home, navController)
+                                NavItem(Routes.HOME, R.string.tab_search, route == Routes.HOME, Icons.Filled.Search, navController)
                                 NavItem(
                                     Routes.COUNTRIES,
                                     R.string.tab_countries,

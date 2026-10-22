@@ -8,7 +8,17 @@ data class AppSettings(
     val filter: RoamFilter = RoamFilter(),
     /** Even out loudness between stations (see the Android `LoudnessLeveler`). */
     val levelVolume: Boolean = true,
+    /** How often the offline station snapshot is downloaded in the background. */
+    val snapshotRefresh: RefreshInterval = RefreshInterval.WEEKLY,
+    val snapshotWifiOnly: Boolean = false,
 )
+
+enum class RefreshInterval(val days: Int) {
+    OFF(0),
+    DAILY(1),
+    WEEKLY(7),
+    MONTHLY(30),
+}
 
 /**
  * What "next station" may land on. Empty sets mean "any". [languages] and [tags]
@@ -101,4 +111,19 @@ enum class GenreOption(val aliases: List<String>) {
     companion object {
         fun byId(id: String): GenreOption? = entries.firstOrNull { it.id == id }
     }
+}
+
+/** [downloadedAtMs] is null while the app still uses the snapshot packed into the APK. */
+data class SnapshotInfo(
+    val downloadedAtMs: Long?,
+    val stationCount: Int,
+)
+
+sealed interface SnapshotResult {
+    data class Updated(val stationCount: Int) : SnapshotResult
+
+    /** The catalog answered with too few stations to replace the current snapshot. */
+    data class TooFew(val stationCount: Int) : SnapshotResult
+
+    data class Failed(val reason: FailureReason) : SnapshotResult
 }
