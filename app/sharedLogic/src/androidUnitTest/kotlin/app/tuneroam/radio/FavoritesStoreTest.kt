@@ -4,8 +4,11 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import app.tuneroam.radio.data.local.CatalogCache
 import app.tuneroam.radio.data.local.SqlFavoritesRepository
 import app.tuneroam.radio.data.local.SqlHistoryRepository
+import app.tuneroam.radio.data.local.SqlSettingsRepository
 import app.tuneroam.radio.data.local.SqlTrackRepository
 import app.tuneroam.radio.data.local.TuneRoamDatabase
+import app.tuneroam.radio.domain.model.AppSettings
+import app.tuneroam.radio.domain.model.RoamFilter
 import app.tuneroam.radio.domain.model.Station
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -43,7 +46,7 @@ class FavoritesStoreTest {
         cache.writeStations("search:NAME:true:50:jazz:", listOf(station("1", "Jazz")))
         cache.writeStations("popular:true:40", listOf(station("2", "Top")))
 
-        assertEquals(4L, TuneRoamDatabase.Schema.version)
+        assertEquals(5L, TuneRoamDatabase.Schema.version)
         TuneRoamDatabase.Schema.migrate(driver, 2, 3)
 
         assertTrue(cache.readStations("search:NAME:true:50:jazz:").isEmpty())
@@ -95,6 +98,33 @@ class FavoritesStoreTest {
         driver.execute(null, "DROP TABLE savedTrack", 0)
         TuneRoamDatabase.Schema.migrate(driver, 3, 4)
         assertTrue(SqlTrackRepository(TuneRoamDatabase(driver)).toggle("A - B", station("1", "Night Desk")))
+    }
+
+    @Test
+    fun settingsPersistAndSurviveAnUnreadableRow() = runTest {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        TuneRoamDatabase.Schema.create(driver)
+        val database = TuneRoamDatabase(driver)
+        val settings = SqlSettingsRepository(database)
+        assertEquals(AppSettings(), settings.current())
+
+        settings.update { it.copy(levelVolume = false, filter = RoamFilter(minBitrate = 128, languages = setOf("chinese"))) }
+        assertEquals(128, settings.observe().first().filter.minBitrate)
+        assertFalse(SqlSettingsRepository(database).current().levelVolume)
+
+        database.catalogQueries.upsertSetting("app", "{not json")
+        assertEquals(AppSettings(), settings.current())
+    }
+
+    @Test
+    fun migrationAddsTheSettingTable() = runTest {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        TuneRoamDatabase.Schema.create(driver)
+        driver.execute(null, "DROP TABLE setting", 0)
+        TuneRoamDatabase.Schema.migrate(driver, 4, 5)
+        val settings = SqlSettingsRepository(TuneRoamDatabase(driver))
+        settings.update { it.copy(levelVolume = false) }
+        assertFalse(settings.current().levelVolume)
     }
 
     private fun station(id: String, name: String) = Station(

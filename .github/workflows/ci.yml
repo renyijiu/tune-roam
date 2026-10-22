@@ -32,6 +32,10 @@ jobs:
       - name: Debug APK
         run: ./gradlew :app:androidApp:assembleDebug
 
+      # Unsigned unless signing secrets are configured; this catches R8 and resource-shrink breakage.
+      - name: Release build (R8)
+        run: ./gradlew :app:androidApp:assembleRelease
+
       - name: Test reports
         if: failure()
         uses: actions/upload-artifact@v4

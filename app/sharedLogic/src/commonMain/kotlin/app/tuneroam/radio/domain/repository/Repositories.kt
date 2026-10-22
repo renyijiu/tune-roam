@@ -1,9 +1,11 @@
 package app.tuneroam.radio.domain.repository
 
 import app.tuneroam.radio.domain.catalog.ReachScore
+import app.tuneroam.radio.domain.model.AppSettings
 import app.tuneroam.radio.domain.model.CatalogQuery
 import app.tuneroam.radio.domain.model.Country
 import app.tuneroam.radio.domain.model.LoadResult
+import app.tuneroam.radio.domain.model.RoamFilter
 import app.tuneroam.radio.domain.model.SavedTrack
 import app.tuneroam.radio.domain.model.Station
 import kotlinx.coroutines.flow.Flow
@@ -24,7 +26,7 @@ interface RadioCatalog {
      * A random batch from the whole live catalog. Falls back to a shuffle of the
      * stations packed into the app when the live catalog cannot be reached.
      */
-    suspend fun random(limit: Int): LoadResult<List<Station>>
+    suspend fun random(limit: Int, filter: RoamFilter = RoamFilter()): LoadResult<List<Station>>
 
     /** One station by uuid, for a shared link. Null when neither the live catalog nor the snapshot has it. */
     suspend fun byUuid(stationUuid: String): Station?
@@ -64,6 +66,14 @@ interface FavoritesRepository {
     suspend fun toggle(station: Station): Boolean
 
     suspend fun remove(stationUuid: String)
+}
+
+interface SettingsRepository {
+    fun observe(): Flow<AppSettings>
+
+    suspend fun current(): AppSettings
+
+    suspend fun update(transform: (AppSettings) -> AppSettings)
 }
 
 interface TrackRepository {

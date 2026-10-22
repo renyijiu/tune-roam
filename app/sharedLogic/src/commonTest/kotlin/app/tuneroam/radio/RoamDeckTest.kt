@@ -70,6 +70,7 @@ class RoamDeckTest {
             FakeCatalog(random = batch.take(2)),
             reach,
             FakeConnectivity(setOf("a", "b")),
+            FakeSettings(),
             this,
         )
         assertEquals("b", deck.next()?.stationUuid)
@@ -87,5 +88,5 @@ class RoamDeckTest {
     }
 
     private fun TestScope.deck(catalog: FakeCatalog, connectivity: FakeConnectivity) =
-        RoamDeck(catalog, FakeReachability(), connectivity, this)
+        RoamDeck(catalog, FakeReachability(), connectivity, FakeSettings(), this)
 }

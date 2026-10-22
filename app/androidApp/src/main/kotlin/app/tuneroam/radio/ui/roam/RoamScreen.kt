@@ -40,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.tuneroam.radio.R
 import app.tuneroam.radio.domain.catalog.WorldDial
 import app.tuneroam.radio.presentation.RoamViewModel
+import app.tuneroam.radio.ui.components.SettingsButton
 import app.tuneroam.radio.ui.theme.Amber
 import app.tuneroam.radio.ui.theme.Signal
 import kotlin.math.cos
@@ -47,7 +48,10 @@ import kotlin.math.sin
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
-fun RoamScreen(viewModel: RoamViewModel = koinViewModel()) {
+fun RoamScreen(
+    onOpenSettings: () -> Unit,
+    viewModel: RoamViewModel = koinViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val chinese = LocalConfiguration.current.locales[0].language.startsWith("zh")
     var rotation by remember { mutableFloatStateOf(WorldDial.rotationFor(state.index)) }
@@ -73,11 +77,14 @@ fun RoamScreen(viewModel: RoamViewModel = koinViewModel()) {
             .padding(horizontal = 20.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            text = stringResource(R.string.roam_title),
-            style = MaterialTheme.typography.displaySmall,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.roam_title),
+                style = MaterialTheme.typography.displaySmall,
+                modifier = Modifier.weight(1f),
+            )
+            SettingsButton(onOpenSettings)
+        }
         Text(
             text = stringResource(R.string.roam_hint),
             style = MaterialTheme.typography.bodyLarge,

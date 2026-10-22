@@ -3,6 +3,7 @@ package app.tuneroam.radio.playback
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
@@ -17,7 +18,10 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.LibraryResult
@@ -41,6 +45,7 @@ import app.tuneroam.radio.domain.repository.FavoritesRepository
 import app.tuneroam.radio.domain.repository.HistoryRepository
 import app.tuneroam.radio.domain.repository.RadioCatalog
 import app.tuneroam.radio.domain.repository.ReachabilityRepository
+import app.tuneroam.radio.domain.repository.SettingsRepository
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -73,6 +78,8 @@ class RadioLibraryService : MediaLibraryService() {
     private val similarStations: SimilarStations by inject()
     private val sleepTimer: SleepTimer by inject()
     private val deck: RoamDeck by inject()
+    private val settings: SettingsRepository by inject()
+    private val leveler = LoudnessLeveler()
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var player: ExoPlayer
@@ -102,7 +109,17 @@ class RadioLibraryService : MediaLibraryService() {
         val httpFactory = DefaultHttpDataSource.Factory()
             .setUserAgent(AppIdentity.USER_AGENT)
             .setAllowCrossProtocolRedirects(true)
-        player = ExoPlayer.Builder(this)
+        val renderers = object : DefaultRenderersFactory(this) {
+            override fun buildAudioSink(
+                context: Context,
+                enableFloatOutput: Boolean,
+                enableAudioTrackPlaybackParams: Boolean,
+            ): AudioSink = DefaultAudioSink.Builder(context)
+                .setAudioProcessors(arrayOf(leveler))
+                .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                .build()
+        }
+        player = ExoPlayer.Builder(this, renderers)
             .setMediaSourceFactory(
                 DefaultMediaSourceFactory(DefaultDataSource.Factory(this, httpFactory)),
             )
@@ -130,6 +147,9 @@ class RadioLibraryService : MediaLibraryService() {
             .setSessionActivity(sessionActivity())
             .build()
 
+        serviceScope.launch {
+            settings.observe().collect { leveler.enabled = it.levelVolume }
+        }
         serviceScope.launch {
             // collectLatest: arming again (say 60 → 15 minutes) drops the old wait.
             sleepTimer.deadlineMs.collectLatest { deadline ->

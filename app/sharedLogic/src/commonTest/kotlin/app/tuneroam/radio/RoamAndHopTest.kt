@@ -96,7 +96,7 @@ class RoamAndHopTest {
         catalog = catalog,
         commands = commands,
         coordinator = coordinator,
-        deck = RoamDeck(catalog, FakeReachability(), FakeConnectivity(emptySet()), CoroutineScope(Dispatchers.Unconfined)),
+        deck = RoamDeck(catalog, FakeReachability(), FakeConnectivity(emptySet()), FakeSettings(), CoroutineScope(Dispatchers.Unconfined)),
         randomIndex = { 0 },
     )
 }

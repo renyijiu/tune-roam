@@ -35,12 +35,16 @@ import app.tuneroam.radio.domain.model.CatalogOrigin
 import app.tuneroam.radio.domain.model.SearchField
 import app.tuneroam.radio.presentation.HomeViewModel
 import app.tuneroam.radio.ui.components.EmptyNote
+import app.tuneroam.radio.ui.components.SettingsButton
 import app.tuneroam.radio.ui.components.StationRow
 import app.tuneroam.radio.ui.components.message
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = koinViewModel()) {
+fun HomeScreen(
+    onOpenSettings: () -> Unit,
+    viewModel: HomeViewModel = koinViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val favorites by viewModel.favoriteIds.collectAsStateWithLifecycle()
     LazyColumn(
@@ -48,11 +52,15 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel()) {
         contentPadding = PaddingValues(bottom = 24.dp),
     ) {
         item {
-            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
-                Text(
-                    text = stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.displaySmall,
-                )
+            Column(modifier = Modifier.padding(start = 20.dp, end = 8.dp, top = 18.dp, bottom = 18.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.displaySmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    SettingsButton(onOpenSettings)
+                }
                 Text(
                     text = stringResource(R.string.tagline),
                     style = MaterialTheme.typography.bodyLarge,

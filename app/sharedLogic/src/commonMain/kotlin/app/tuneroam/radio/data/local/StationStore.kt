@@ -4,6 +4,7 @@ import app.tuneroam.radio.core.RadioJson
 import app.tuneroam.radio.core.epochMillis
 import app.tuneroam.radio.data.remote.MirrorMemory
 import app.tuneroam.radio.domain.catalog.ReachScore
+import app.tuneroam.radio.domain.model.AppSettings
 import app.tuneroam.radio.domain.model.Country
 import app.tuneroam.radio.domain.model.SavedTrack
 import app.tuneroam.radio.domain.model.TrackTitle
@@ -11,9 +12,11 @@ import app.tuneroam.radio.domain.model.Station
 import app.tuneroam.radio.domain.repository.FavoritesRepository
 import app.tuneroam.radio.domain.repository.HistoryRepository
 import app.tuneroam.radio.domain.repository.ReachabilityRepository
+import app.tuneroam.radio.domain.repository.SettingsRepository
 import app.tuneroam.radio.domain.repository.TrackRepository
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import app.cash.sqldelight.coroutines.mapToOneOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -202,6 +205,37 @@ class SqlHistoryRepository(
                 database.catalogQueries.trimHistory()
             }
         }
+    }
+}
+
+/** [AppSettings] as one JSON row. A row that no longer parses falls back to the defaults. */
+class SqlSettingsRepository(
+    private val database: TuneRoamDatabase,
+) : SettingsRepository {
+    override fun observe(): Flow<AppSettings> =
+        database.catalogQueries.selectSetting(KEY)
+            .asFlow()
+            .mapToOneOrNull(Dispatchers.IO)
+            .map { it.toSettings() }
+
+    override suspend fun current(): AppSettings = withContext(Dispatchers.IO) {
+        database.catalogQueries.selectSetting(KEY).executeAsOneOrNull().toSettings()
+    }
+
+    override suspend fun update(transform: (AppSettings) -> AppSettings) {
+        withContext(Dispatchers.IO) {
+            database.transaction {
+                val now = database.catalogQueries.selectSetting(KEY).executeAsOneOrNull().toSettings()
+                database.catalogQueries.upsertSetting(KEY, RadioJson.encodeToString(transform(now)))
+            }
+        }
+    }
+
+    private fun String?.toSettings(): AppSettings =
+        this?.let { runCatching { RadioJson.decodeFromString<AppSettings>(it) }.getOrNull() } ?: AppSettings()
+
+    private companion object {
+        const val KEY = "app"
     }
 }
 
