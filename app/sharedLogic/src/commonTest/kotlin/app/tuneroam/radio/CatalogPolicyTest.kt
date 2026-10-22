@@ -18,8 +18,7 @@ class CatalogPolicyTest {
     @Test
     fun mirrorListPrefersTheRememberedHost() {
         val hosts = mirrorHosts(
-            remembered = "de2.api.radio-browser.info",
-            discovered = listOf("de1.api.radio-browser.info", "de2.api.radio-browser.info"),
+            remembered = " de2.api.radio-browser.info ",
             known = listOf("de1.api.radio-browser.info", "de2.api.radio-browser.info"),
         )
         assertEquals(listOf("de2.api.radio-browser.info", "de1.api.radio-browser.info"), hosts)

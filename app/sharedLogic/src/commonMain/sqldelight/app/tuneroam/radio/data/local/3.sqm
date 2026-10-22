@@ -1,8 +1,0 @@
-CREATE TABLE savedTrack (
-    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    titleKey TEXT NOT NULL UNIQUE,
-    stationUuid TEXT NOT NULL,
-    stationName TEXT NOT NULL,
-    savedAt INTEGER NOT NULL
-);

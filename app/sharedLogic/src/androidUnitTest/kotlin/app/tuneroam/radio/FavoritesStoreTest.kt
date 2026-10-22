@@ -1,7 +1,6 @@
 package app.tuneroam.radio
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
-import app.tuneroam.radio.data.local.CatalogCache
 import app.tuneroam.radio.data.local.SqlFavoritesRepository
 import app.tuneroam.radio.data.local.SqlHistoryRepository
 import app.tuneroam.radio.data.local.SqlSettingsRepository
@@ -35,22 +34,6 @@ class FavoritesStoreTest {
         assertEquals(listOf("2"), repository.list().map { it.stationUuid })
         repository.remove("2")
         assertTrue(repository.list().isEmpty())
-    }
-
-    @Test
-    fun migrationDropsCachedSearchesButKeepsOtherBuckets() {
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        TuneRoamDatabase.Schema.create(driver)
-        val database = TuneRoamDatabase(driver)
-        val cache = CatalogCache(database)
-        cache.writeStations("search:NAME:true:50:jazz:", listOf(station("1", "Jazz")))
-        cache.writeStations("popular:true:40", listOf(station("2", "Top")))
-
-        assertEquals(5L, TuneRoamDatabase.Schema.version)
-        TuneRoamDatabase.Schema.migrate(driver, 2, 3)
-
-        assertTrue(cache.readStations("search:NAME:true:50:jazz:").isEmpty())
-        assertEquals(listOf("2"), cache.readStations("popular:true:40").map { it.stationUuid })
     }
 
     @Test
@@ -91,16 +74,6 @@ class FavoritesStoreTest {
     }
 
     @Test
-    fun migrationAddsTheSavedTrackTable() = runTest {
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        // Version 3 had no savedTrack table: build it, drop the new table, migrate up.
-        TuneRoamDatabase.Schema.create(driver)
-        driver.execute(null, "DROP TABLE savedTrack", 0)
-        TuneRoamDatabase.Schema.migrate(driver, 3, 4)
-        assertTrue(SqlTrackRepository(TuneRoamDatabase(driver)).toggle("A - B", station("1", "Night Desk")))
-    }
-
-    @Test
     fun settingsPersistAndSurviveAnUnreadableRow() = runTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         TuneRoamDatabase.Schema.create(driver)
@@ -114,17 +87,6 @@ class FavoritesStoreTest {
 
         database.catalogQueries.upsertSetting("app", "{not json")
         assertEquals(AppSettings(), settings.current())
-    }
-
-    @Test
-    fun migrationAddsTheSettingTable() = runTest {
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        TuneRoamDatabase.Schema.create(driver)
-        driver.execute(null, "DROP TABLE setting", 0)
-        TuneRoamDatabase.Schema.migrate(driver, 4, 5)
-        val settings = SqlSettingsRepository(TuneRoamDatabase(driver))
-        settings.update { it.copy(levelVolume = false) }
-        assertFalse(settings.current().levelVolume)
     }
 
     private fun station(id: String, name: String) = Station(

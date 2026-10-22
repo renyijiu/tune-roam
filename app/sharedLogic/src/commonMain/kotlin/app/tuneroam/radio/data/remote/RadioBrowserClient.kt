@@ -69,7 +69,7 @@ class ServerDirectory(
 
     private suspend fun select(): String {
         val remembered = memory.read()
-        val all = mirrorHosts(remembered, emptyList(), knownHosts)
+        val all = mirrorHosts(remembered, knownHosts)
         // Every mirror failed once already: the network was probably down, so start over.
         if (all.all { it in skipped }) skipped.clear()
         val first = all.filter { it !in skipped }
