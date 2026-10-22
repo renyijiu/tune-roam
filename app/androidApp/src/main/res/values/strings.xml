@@ -5,7 +5,10 @@
     <string name="tab_home">Home</string>
     <string name="tab_countries">Countries</string>
     <string name="tab_favorites">Favorites</string>
-    <string name="search_hint">Search stations</string>
+    <string name="search_hint_name">Station name</string>
+    <string name="search_hint_tag">A tag, like jazz or news</string>
+    <string name="search_hint_country">Country or code, like JP</string>
+    <string name="search_by">Search by %1$s</string>
     <string name="search">Search</string>
     <string name="field_name">Name</string>
     <string name="field_tag">Tag</string>
