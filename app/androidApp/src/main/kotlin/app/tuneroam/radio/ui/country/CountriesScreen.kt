@@ -91,7 +91,7 @@ fun CountriesScreen(
         } else if (visible.isEmpty() && state.error == null) {
             item { EmptyNote(stringResource(R.string.empty_countries)) }
         }
-        items(visible, key = { it.isoCode.ifBlank { it.name } }) { country ->
+        items(visible, key = { it.name }) { country ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

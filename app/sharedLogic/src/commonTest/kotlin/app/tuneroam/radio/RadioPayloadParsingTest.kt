@@ -52,6 +52,22 @@ class RadioPayloadParsingTest {
     }
 
     @Test
+    fun repeatedCountryNamesMergeIntoOneRow() {
+        val countries = RadioPayloads.countries(
+            """
+            [
+              {"name":"Taiwan","iso_3166_1":"TW","stationcount":40},
+              {"name":"Taiwan ","iso_3166_1":"","stationcount":2},
+              {"name":"Andorra","iso_3166_1":"AD","stationcount":13}
+            ]
+            """.trimIndent(),
+        )
+        assertEquals(listOf("Taiwan", "Andorra"), countries.map { it.name })
+        assertEquals("TW", countries.first().isoCode)
+        assertEquals(42, countries.first().stationCount)
+    }
+
+    @Test
     fun serverListCollapsesDuplicateNames() {
         val names = RadioPayloads.serverNames(SERVERS)
         assertEquals(listOf("de1.api.radio-browser.info", "nl1.api.radio-browser.info"), names)
