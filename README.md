@@ -4,6 +4,14 @@ Android 上的全球网络电台。共享的 Kotlin 核心不依赖 Android，�
 
 数据来自 [Radio Browser](https://api.radio-browser.info/) 的公开 API。灵感来自网页电台 [RoamDial](https://www.v2ex.com/t/1249321)：按世界各地浏览电台。随声不是 RoamDial，名字、包名和代码都与它无关。
 
+> **English.** Tune Roam is an Android internet radio app built on the public [Radio Browser](https://www.radio-browser.info/) directory. Spin a dotted globe to roam between countries, search by name, tag or country, and skip to the next station with streams probed in advance. It plays in the background through Media3 (notification, lock screen, headset, Bluetooth and car controls), levels loudness across stations, and keeps an offline station list for when the directory is unreachable. The core is Kotlin Multiplatform with no Android dependency, so an iOS shell can be added later. Build with JDK 21 and the Android SDK: `./gradlew :app:androidApp:assembleDebug`. The rest of this README is in Chinese. Licensed under [MIT](LICENSE).
+
+<p>
+  <img src="docs/screenshots/roam.jpg" width="240" alt="漫游 / Roam">
+  <img src="docs/screenshots/player.jpg" width="240" alt="正在播放 / Now playing">
+  <img src="docs/screenshots/search.jpg" width="240" alt="搜索 / Search">
+</p>
+
 ## 功能
 
 - **漫游**：Compose Canvas 画的点阵地球（陆地是 Natural Earth 1:110m 轮廓栅格化出的八千多个点）。左右拨动，地球在国家之间飞过去，有惯性和卡位回弹，每过一个国家轻震一下；准星下的国家会换一座可播的电台。拨到两国之间时下方的信号线是杂音，对准时变成干净的载波；电台接通时准星处闪一圈光，播出时从该国发出沿球面弯曲的波纹。「随便一座」时地球会拉远、一路向东扫台直到有台应答。地球跟着正在播的台转；台所在的国家不在表盘上时，地球不动，台名下面标出实际国家。
@@ -207,6 +215,10 @@ App 也会在手机上按同样的规则自己更新这份清单（见「离线�
 - Android Auto 只声明了 `automotive_app_desc.xml` 并提供浏览树，没有在实车上验证（中国大陆也不可用）。睡眠定时按墙钟倒计时，服务进程被系统杀掉之后不会再响。
 
 ## 许可
+
+代码以 [MIT](LICENSE) 许可发布。下面的第三方内容按各自的许可。
+
+随包电台快照（`BundledSnapshotJson.kt`）和运行时的电台数据来自 [Radio Browser](https://www.radio-browser.info/)，不属于本项目的 MIT 许可范围。
 
 地球的陆地点阵（`ui/fx/LandDots.kt`）由 [Natural Earth](https://www.naturalearthdata.com/) 的 `ne_110m_land` 生成，属于公有领域，生成方式见 `third_party/natural-earth/README.md`。
 
