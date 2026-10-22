@@ -38,14 +38,14 @@ jobs:
 
       - name: Test reports
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-reports
           path: app/*/build/reports/tests/
           if-no-files-found: ignore
 
       - name: Debug APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tune-roam-debug-apk
           path: app/androidApp/build/outputs/apk/debug/*.apk
