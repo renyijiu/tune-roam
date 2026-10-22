@@ -70,4 +70,16 @@
     <string name="empty_history">Stations you listen to show up here, on this phone only.</string>
     <string name="shelf_saved">Saved</string>
     <string name="shelf_recent">Recent</string>
+    <string name="shelf_tracks">Tracks</string>
+    <string name="tracks_heading">Saved tracks</string>
+    <string name="empty_tracks">Tap the heart next to a song title on the player to keep it here.</string>
+    <string name="track_save">Save this song</string>
+    <string name="track_unsave">Remove this song</string>
+    <string name="track_search">Search for this song</string>
+    <string name="track_remove">Delete</string>
+    <string name="track_from">From %1$s</string>
+    <string name="service_netease">NetEase Cloud Music</string>
+    <string name="service_qq">QQ Music</string>
+    <string name="service_spotify">Spotify</string>
+    <string name="open_failed">No app here can open that link.</string>
 </resources>

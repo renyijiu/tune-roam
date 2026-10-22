@@ -8,6 +8,7 @@ import app.tuneroam.radio.presentation.FavoritesViewModel
 import app.tuneroam.radio.presentation.HomeViewModel
 import app.tuneroam.radio.presentation.PlayerViewModel
 import app.tuneroam.radio.presentation.RoamViewModel
+import app.tuneroam.radio.presentation.TracksViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
@@ -34,5 +35,6 @@ val androidAppModule = module {
         )
     }
     viewModel { FavoritesViewModel(get(), get(), get()) }
+    viewModel { TracksViewModel(get(), get()) }
     viewModel { PlayerViewModel(get(), get(), get(), get(), get(), get(), get(), get()) }
 }

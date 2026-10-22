@@ -4,6 +4,7 @@ import app.tuneroam.radio.domain.catalog.ReachScore
 import app.tuneroam.radio.domain.model.CatalogQuery
 import app.tuneroam.radio.domain.model.Country
 import app.tuneroam.radio.domain.model.LoadResult
+import app.tuneroam.radio.domain.model.SavedTrack
 import app.tuneroam.radio.domain.model.Station
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -63,6 +64,18 @@ interface FavoritesRepository {
     suspend fun toggle(station: Station): Boolean
 
     suspend fun remove(stationUuid: String)
+}
+
+interface TrackRepository {
+    fun observe(): Flow<List<SavedTrack>>
+
+    /** Normalized keys of saved titles (see `TrackTitle.key`), for the heart on the player. */
+    fun observeKeys(): Flow<Set<String>>
+
+    /** Saves [title] heard on [station], or removes it when already saved. True when now saved. */
+    suspend fun toggle(title: String, station: Station): Boolean
+
+    suspend fun remove(id: Long)
 }
 
 /** Saved station ids, for the heart on every list row. */

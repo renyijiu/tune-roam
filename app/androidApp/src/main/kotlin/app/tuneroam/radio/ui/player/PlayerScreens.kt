@@ -57,7 +57,10 @@ import app.tuneroam.radio.domain.playback.PlaybackSnapshot
 import app.tuneroam.radio.domain.playback.StreamUrlKind
 import app.tuneroam.radio.presentation.PlayerHint
 import app.tuneroam.radio.presentation.PlayerViewModel
+import app.tuneroam.radio.presentation.TracksViewModel
 import app.tuneroam.radio.ui.components.HealthDot
+import app.tuneroam.radio.ui.components.SaveTrackButton
+import app.tuneroam.radio.ui.components.SearchTrackButton
 import app.tuneroam.radio.ui.components.StationMark
 import app.tuneroam.radio.ui.theme.Signal
 import kotlinx.coroutines.delay
@@ -106,8 +109,10 @@ fun MiniPlayerBar(
 fun NowPlayingScreen(
     onBack: () -> Unit,
     viewModel: PlayerViewModel = koinViewModel(),
+    tracks: TracksViewModel = koinViewModel(),
 ) {
     val playback by viewModel.playback.collectAsStateWithLifecycle()
+    val trackSaved by tracks.currentSaved.collectAsStateWithLifecycle()
     val favorite by viewModel.isFavorite.collectAsStateWithLifecycle()
     val hint by viewModel.hint.collectAsStateWithLifecycle()
     val canGoBack by viewModel.canGoBack.collectAsStateWithLifecycle()
@@ -187,6 +192,10 @@ fun NowPlayingScreen(
                 style = MaterialTheme.typography.titleMedium,
                 textAlign = TextAlign.Center,
             )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SaveTrackButton(saved = trackSaved, onToggle = tracks::toggleCurrent)
+                SearchTrackButton(title)
+            }
         }
         Row(
             modifier = Modifier.padding(top = 14.dp),

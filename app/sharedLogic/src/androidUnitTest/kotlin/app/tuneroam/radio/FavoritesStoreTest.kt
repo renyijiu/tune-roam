@@ -4,12 +4,14 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import app.tuneroam.radio.data.local.CatalogCache
 import app.tuneroam.radio.data.local.SqlFavoritesRepository
 import app.tuneroam.radio.data.local.SqlHistoryRepository
+import app.tuneroam.radio.data.local.SqlTrackRepository
 import app.tuneroam.radio.data.local.TuneRoamDatabase
 import app.tuneroam.radio.domain.model.Station
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 
 class FavoritesStoreTest {
@@ -41,7 +43,7 @@ class FavoritesStoreTest {
         cache.writeStations("search:NAME:true:50:jazz:", listOf(station("1", "Jazz")))
         cache.writeStations("popular:true:40", listOf(station("2", "Top")))
 
-        assertEquals(3L, TuneRoamDatabase.Schema.version)
+        assertEquals(4L, TuneRoamDatabase.Schema.version)
         TuneRoamDatabase.Schema.migrate(driver, 2, 3)
 
         assertTrue(cache.readStations("search:NAME:true:50:jazz:").isEmpty())
@@ -62,6 +64,37 @@ class FavoritesStoreTest {
         now = 3_000L
         history.record(station("1", "Morning"))
         assertEquals("1", history.latest()?.stationUuid)
+    }
+
+    @Test
+    fun savedTracksToggleAndIgnoreCaseAndSpacing() = runTest {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        TuneRoamDatabase.Schema.create(driver)
+        val tracks = SqlTrackRepository(TuneRoamDatabase(driver))
+        val radio = station("1", "Night Desk")
+
+        assertTrue(tracks.toggle("Daft Punk - One More Time", radio))
+        // Same song from another station, different spacing and case: already saved, so this removes it.
+        assertFalse(tracks.toggle(" daft punk  -  one more time", station("2", "Day Desk")))
+        assertTrue(tracks.observe().first().isEmpty())
+
+        assertTrue(tracks.toggle("周杰伦 - 晴天", radio))
+        val saved = tracks.observe().first().single()
+        assertEquals("晴天", saved.song)
+        assertEquals("Night Desk", saved.stationName)
+        assertEquals(setOf("周杰伦 - 晴天"), tracks.observeKeys().first())
+        tracks.remove(saved.id)
+        assertTrue(tracks.observe().first().isEmpty())
+    }
+
+    @Test
+    fun migrationAddsTheSavedTrackTable() = runTest {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        // Version 3 had no savedTrack table: build it, drop the new table, migrate up.
+        TuneRoamDatabase.Schema.create(driver)
+        driver.execute(null, "DROP TABLE savedTrack", 0)
+        TuneRoamDatabase.Schema.migrate(driver, 3, 4)
+        assertTrue(SqlTrackRepository(TuneRoamDatabase(driver)).toggle("A - B", station("1", "Night Desk")))
     }
 
     private fun station(id: String, name: String) = Station(

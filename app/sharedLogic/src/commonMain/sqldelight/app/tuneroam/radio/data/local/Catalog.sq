@@ -253,3 +253,46 @@ INSERT OR REPLACE INTO mirrorMemory (
     :latencyMs,
     :checkedAt
 );
+
+-- Song titles the listener saved from a station's ICY metadata. titleKey is the
+-- normalized title, so the same song saved from two stations is kept once.
+CREATE TABLE savedTrack (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    titleKey TEXT NOT NULL UNIQUE,
+    stationUuid TEXT NOT NULL,
+    stationName TEXT NOT NULL,
+    savedAt INTEGER NOT NULL
+);
+
+selectTracks:
+SELECT *
+FROM savedTrack
+ORDER BY savedAt DESC, id DESC;
+
+selectTrackKeys:
+SELECT titleKey
+FROM savedTrack;
+
+insertTrack:
+INSERT OR IGNORE INTO savedTrack (
+    title,
+    titleKey,
+    stationUuid,
+    stationName,
+    savedAt
+) VALUES (
+    :title,
+    :titleKey,
+    :stationUuid,
+    :stationName,
+    :savedAt
+);
+
+deleteTrackByKey:
+DELETE FROM savedTrack
+WHERE titleKey = :titleKey;
+
+deleteTrack:
+DELETE FROM savedTrack
+WHERE id = :id;

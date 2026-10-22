@@ -70,4 +70,16 @@
     <string name="empty_history">听过的电台会出现在这里，只存在这台手机上。</string>
     <string name="shelf_saved">收藏</string>
     <string name="shelf_recent">最近</string>
+    <string name="shelf_tracks">曲目</string>
+    <string name="tracks_heading">收藏的曲目</string>
+    <string name="empty_tracks">在播放页点曲名旁边的心形，歌就会收在这里。</string>
+    <string name="track_save">收藏这首歌</string>
+    <string name="track_unsave">取消收藏这首歌</string>
+    <string name="track_search">搜索这首歌</string>
+    <string name="track_remove">删除</string>
+    <string name="track_from">来自 %1$s</string>
+    <string name="service_netease">网易云音乐</string>
+    <string name="service_qq">QQ 音乐</string>
+    <string name="service_spotify">Spotify</string>
+    <string name="open_failed">没有能打开这个链接的应用。</string>
 </resources>

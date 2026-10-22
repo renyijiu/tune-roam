@@ -5,10 +5,13 @@ import app.tuneroam.radio.core.epochMillis
 import app.tuneroam.radio.data.remote.MirrorMemory
 import app.tuneroam.radio.domain.catalog.ReachScore
 import app.tuneroam.radio.domain.model.Country
+import app.tuneroam.radio.domain.model.SavedTrack
+import app.tuneroam.radio.domain.model.TrackTitle
 import app.tuneroam.radio.domain.model.Station
 import app.tuneroam.radio.domain.repository.FavoritesRepository
 import app.tuneroam.radio.domain.repository.HistoryRepository
 import app.tuneroam.radio.domain.repository.ReachabilityRepository
+import app.tuneroam.radio.domain.repository.TrackRepository
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import kotlinx.coroutines.Dispatchers
@@ -198,6 +201,49 @@ class SqlHistoryRepository(
                 )
                 database.catalogQueries.trimHistory()
             }
+        }
+    }
+}
+
+class SqlTrackRepository(
+    private val database: TuneRoamDatabase,
+    private val clock: () -> Long = ::epochMillis,
+) : TrackRepository {
+    override fun observe(): Flow<List<SavedTrack>> =
+        database.catalogQueries.selectTracks { id, title, _, stationUuid, stationName, savedAt ->
+            SavedTrack(id = id, title = title, stationUuid = stationUuid, stationName = stationName, savedAt = savedAt)
+        }
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+
+    override fun observeKeys(): Flow<Set<String>> =
+        database.catalogQueries.selectTrackKeys()
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+            .map { it.toSet() }
+
+    override suspend fun toggle(title: String, station: Station): Boolean = withContext(Dispatchers.IO) {
+        val key = TrackTitle.key(title)
+        database.transactionWithResult {
+            val saved = key in database.catalogQueries.selectTrackKeys().executeAsList()
+            if (saved) {
+                database.catalogQueries.deleteTrackByKey(key)
+            } else {
+                database.catalogQueries.insertTrack(
+                    title = TrackTitle.clean(title),
+                    titleKey = key,
+                    stationUuid = station.stationUuid,
+                    stationName = station.name,
+                    savedAt = clock(),
+                )
+            }
+            !saved
+        }
+    }
+
+    override suspend fun remove(id: Long) {
+        withContext(Dispatchers.IO) {
+            database.catalogQueries.deleteTrack(id)
         }
     }
 }
