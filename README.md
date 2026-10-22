@@ -150,6 +150,18 @@ keytool -genkeypair -v -keystore release.jks -alias tuneroam -keyalg RSA -keysiz
 
 密钥丢了就无法再给已安装的用户推送更新，请另外备份。
 
+GitHub Release 由 `.github/workflows/release.yml` 自动发：推一个 `v` 开头的 tag，它会跑单元测试、构建签名的 release APK，然后建一个 Release，附上 `tune-roam-<版本>.apk` 和对应的 `.sha256`，用户从 Releases 页面下载安装。版本号带 `-`（如 `v0.2.0-beta.1`）时标为预发布。tag 必须和 `versionName`、`AppIdentity.VERSION` 一致，否则直接失败：
+
+```bash
+git tag v0.1.0
+```
+
+```bash
+git push origin v0.1.0
+```
+
+第一次用之前，在仓库的 Settings → Secrets and variables → Actions 里加四个 secret：`TUNEROAM_KEYSTORE_BASE64`（`base64 -i release.jks | pbcopy` 得到的内容）、`TUNEROAM_KEYSTORE_PASSWORD`、`TUNEROAM_KEY_ALIAS`、`TUNEROAM_KEY_PASSWORD`。缺任何一个都会让工作流失败，而不是发出一个装不上的未签名 APK。每次发版记得同时调高 `versionCode`，否则已安装的用户无法覆盖升级。
+
 ### 随包电台快照
 
 只看会取到哪些台：
