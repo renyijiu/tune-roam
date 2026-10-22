@@ -7,12 +7,24 @@ import app.tuneroam.radio.domain.model.Station
 import app.tuneroam.radio.domain.model.respecting
 
 /**
- * Offline copy of a Radio Browser pull: popular stations plus Chinese-language
- * stations from the mainland, Hong Kong, Taiwan, and Singapore.
- * Refreshed in the SQL cache whenever a live request succeeds.
+ * The station snapshot packed into the APK: popular stations plus Chinese-language
+ * stations from the mainland, Hong Kong, Taiwan, and Singapore. Used until the app
+ * has downloaded a snapshot of its own (see `SnapshotStore`).
  */
 object BundledCatalog {
     private val stations: List<Station> by lazy { RadioPayloads.stations(BUNDLED_SNAPSHOT_JSON) }
+
+    fun all(): List<Station> = stations
+}
+
+/**
+ * Offline answers from a station snapshot, for when the live catalog cannot be
+ * reached. [source] is read on every call, so a freshly downloaded snapshot takes
+ * over without rebuilding anything.
+ */
+class FallbackCatalog(private val source: () -> List<Station>) {
+    private val stations: List<Station>
+        get() = source()
 
     fun all(): List<Station> = stations
 

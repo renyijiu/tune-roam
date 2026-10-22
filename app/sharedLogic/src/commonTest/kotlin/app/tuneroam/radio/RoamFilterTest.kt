@@ -1,6 +1,8 @@
 package app.tuneroam.radio
 
+import app.tuneroam.radio.core.RadioJson
 import app.tuneroam.radio.domain.model.AppSettings
+import app.tuneroam.radio.domain.model.RefreshInterval
 import app.tuneroam.radio.domain.model.RoamFilter
 import app.tuneroam.radio.domain.playback.RoamDeck
 import kotlin.test.Test
@@ -43,6 +45,17 @@ class RoamFilterTest {
         )
         assertEquals(emptyMap(), RoamFilter(languages = setOf("chinese", "english")).queryParameters())
         assertFalse(RoamFilter().isActive)
+    }
+
+    @Test
+    fun settingsFromAnOlderOrNewerVersionStillLoad() {
+        // Saved before the snapshot settings existed: they take their defaults.
+        val old = RadioJson.decodeFromString(AppSettings.serializer(), """{"levelVolume":false}""")
+        assertEquals(RefreshInterval.WEEKLY, old.snapshotRefresh)
+        assertFalse(old.levelVolume)
+        // An interval this version does not know falls back to the default instead of failing.
+        val newer = RadioJson.decodeFromString(AppSettings.serializer(), """{"snapshotRefresh":"HOURLY"}""")
+        assertEquals(RefreshInterval.WEEKLY, newer.snapshotRefresh)
     }
 
     @Test

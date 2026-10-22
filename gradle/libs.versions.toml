@@ -12,6 +12,7 @@ lifecycle = "2.8.7"
 activity = "1.10.1"
 navigation = "2.8.9"
 coil = "2.7.0"
+work = "2.10.5"
 core = "1.15.0"
 
 [libraries]
@@ -46,6 +47,7 @@ koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 koin-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = "koin" }
 coil = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

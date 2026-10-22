@@ -36,8 +36,11 @@ import app.tuneroam.radio.R
 import app.tuneroam.radio.diagnostics.CrashLog
 import app.tuneroam.radio.domain.model.GenreOption
 import app.tuneroam.radio.domain.model.LanguageOption
+import app.tuneroam.radio.domain.model.RefreshInterval
 import app.tuneroam.radio.domain.model.RoamFilter
+import app.tuneroam.radio.domain.model.SnapshotResult
 import app.tuneroam.radio.presentation.SettingsViewModel
+import app.tuneroam.radio.presentation.SnapshotStatus
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -133,6 +136,9 @@ fun SettingsScreen(
         }
         Note(stringResource(R.string.settings_level_volume_note))
 
+        Section(R.string.settings_snapshot_heading)
+        SnapshotSection(viewModel, settings.snapshotRefresh, settings.snapshotWifiOnly)
+
         Section(R.string.settings_crash_heading)
         CrashLogRow()
 
@@ -141,6 +147,72 @@ fun SettingsScreen(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 24.dp),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun SnapshotSection(viewModel: SettingsViewModel, interval: RefreshInterval, wifiOnly: Boolean) {
+    val info by viewModel.snapshotInfo.collectAsStateWithLifecycle()
+    val status by viewModel.snapshotStatus.collectAsStateWithLifecycle()
+    Note(stringResource(R.string.settings_snapshot_note))
+    info?.let { current ->
+        val downloadedAt = current.downloadedAtMs
+        Note(
+            if (downloadedAt == null) {
+                stringResource(R.string.settings_snapshot_bundled, current.stationCount)
+            } else {
+                stringResource(
+                    R.string.settings_snapshot_downloaded,
+                    DateUtils.getRelativeTimeSpanString(downloadedAt).toString(),
+                    current.stationCount,
+                )
+            },
+        )
+    }
+    Label(R.string.settings_snapshot_interval)
+    Chips {
+        RefreshInterval.entries.forEach { choice ->
+            FilterChip(
+                selected = interval == choice,
+                onClick = { viewModel.setSnapshotRefresh(choice) },
+                label = { Text(stringResource(choice.label())) },
+            )
+        }
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            stringResource(R.string.settings_snapshot_wifi),
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        Switch(
+            checked = wifiOnly,
+            onCheckedChange = viewModel::setSnapshotWifiOnly,
+            enabled = interval != RefreshInterval.OFF,
+        )
+    }
+    val updating = status == SnapshotStatus.Updating
+    TextButton(
+        onClick = viewModel::refreshSnapshotNow,
+        enabled = !updating,
+        modifier = Modifier.padding(horizontal = 12.dp),
+    ) {
+        Text(stringResource(if (updating) R.string.settings_snapshot_updating else R.string.settings_snapshot_now))
+    }
+    (status as? SnapshotStatus.Done)?.let { done ->
+        Note(
+            when (val result = done.result) {
+                is SnapshotResult.Updated -> stringResource(R.string.settings_snapshot_updated, result.stationCount)
+                is SnapshotResult.TooFew -> stringResource(R.string.settings_snapshot_too_few, result.stationCount)
+                is SnapshotResult.Failed -> stringResource(R.string.settings_snapshot_failed)
+            },
         )
     }
 }
@@ -224,6 +296,13 @@ private fun Chips(content: @Composable () -> Unit) {
     ) {
         content()
     }
+}
+
+private fun RefreshInterval.label(): Int = when (this) {
+    RefreshInterval.OFF -> R.string.refresh_off
+    RefreshInterval.DAILY -> R.string.refresh_daily
+    RefreshInterval.WEEKLY -> R.string.refresh_weekly
+    RefreshInterval.MONTHLY -> R.string.refresh_monthly
 }
 
 private fun LanguageOption.label(): Int = when (this) {

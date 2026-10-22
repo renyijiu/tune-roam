@@ -7,6 +7,8 @@ import app.tuneroam.radio.domain.model.Country
 import app.tuneroam.radio.domain.model.LoadResult
 import app.tuneroam.radio.domain.model.RoamFilter
 import app.tuneroam.radio.domain.model.SavedTrack
+import app.tuneroam.radio.domain.model.SnapshotInfo
+import app.tuneroam.radio.domain.model.SnapshotResult
 import app.tuneroam.radio.domain.model.Station
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -66,6 +68,17 @@ interface FavoritesRepository {
     suspend fun toggle(station: Station): Boolean
 
     suspend fun remove(stationUuid: String)
+}
+
+/**
+ * The offline station snapshot: downloaded now and then from the live catalog, used
+ * when the live catalog cannot be reached.
+ */
+interface SnapshotRepository {
+    fun observe(): Flow<SnapshotInfo>
+
+    /** Downloads a new snapshot. A failed or short download keeps the current one. */
+    suspend fun refresh(): SnapshotResult
 }
 
 interface SettingsRepository {
