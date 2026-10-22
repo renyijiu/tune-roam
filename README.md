@@ -19,6 +19,10 @@ Android 上的全球网络电台。先把 Android 做完，共享的 Kotlin 核�
 - 国家：国家列表和电台数量。首页、漫游和国家页有一层 Compose Canvas 星点背景。
 - 下一站 / 上一站：下一站从实时目录随机抽一批（连不上时用随包快照），后台先探测好后面三座能连通的，按下去通常马上就有声音；在这台手机上失败过的台排到后面。上一站沿本次播放过的台往回走，再按下一站回到原处。播放页、迷你播放条、通知、锁屏、耳机和蓝牙 / 车机的上一首、下一首都是这两个动作。
 - 续听：打开应用时，迷你播放条停在上次真正播出过的台，点播放就接着听。系统的媒体控件、耳机或车机在应用没运行时按播放（包括重启手机之后），也会接着放这座台。
+- 设置（漫游页和首页右上角的齿轮）：
+  - 下一站筛选：码率下限、语言、只听哪些类型、不要哪些类型。下一站、随便一座，以及通知栏和车机上的下一首都按这个来。只选了一个语言或一个类型时，筛选直接写进 Radio Browser 的随机查询；多选时在手机上筛。码率未知的台（多为 HLS）不会被码率下限挡掉。
+  - 音量统一：默认打开，边播边把各台拉到相近的响度（见下文「音量统一」）。
+  - 崩溃日志：有崩溃记录时，可以分享或清除。
 - 曲目收藏：电台发了 ICY 曲名时，播放页的曲名下面有心形和搜索两个按钮。心形把这首歌收进「收藏」页的「曲目」栏（同一首歌换个大小写或空格、换个台也只存一次）；搜索可以选网易云音乐、QQ 音乐或 Spotify。
 - 分享：播放页右上角分享 `tuneroam://station/{stationuuid}` 链接。装了应用的手机点开就会播这座台；先查收藏，再查实时目录，最后查随包快照。
 - 正在播放：台名、图标、国家、标签、码率 / 编码、健康状态、播放暂停、收藏、睡眠定时。有 ICY 元数据时，界面、通知和锁屏都显示当前曲目，台标用电台 favicon。
@@ -29,6 +33,15 @@ Android 上的全球网络电台。先把 Android 做完，共享的 Kotlin 核�
 - 流失败或在超时内起不来时，先试 `url_resolved`，再试 `url`。都失败后自动换一座相近、并且短探测能连通的台（最多三次），也可以手动再点一次。
 
 ## 更新记录
+
+### v7（筛选、音量统一、发布准备）
+
+- 新表 `setting`（迁移 `4.sqm`，schema 版本 5），所有设置作为一个 `AppSettings` JSON 存在里面；以后加字段只要给默认值。这一行解析不了时回到默认设置。
+- `RoamFilter` 和 `LanguageOption` / `GenreOption` 放在共享核心。`RoamDeck` 每次取台前对照当前筛选，筛选变了就丢掉预探测好的那几座（历史保留）；设置页改完筛选会立刻按新条件预探测。
+- `LoudnessLeveler`：插进 ExoPlayer 音频输出链的 `AudioProcessor`。按 50 ms 一段测 RMS，用约 3 秒的慢速估计把增益推向约 −18 dBFS，范围 ±12 dB；调低快（6 dB/s）、调高慢（2 dB/s）；提升时按峰值限制，不会削波。约 −50 dBFS 以下当作静音，不参与估计。每个新流从原始音量（增益 1）开始。只处理 16 位 PCM（ExoPlayer 默认的解码输出），其他格式原样通过。
+- 发布构建打开 R8 和资源压缩，release APK 约 3.6 MB（debug 约 27 MB）。签名从 `keystore.properties` 或环境变量读取，见「发布」。CI 增加了一步未签名的 `assembleRelease`，用来发现 R8 问题。
+- 本地崩溃日志 `CrashLog`：未捕获异常写到应用私有目录 `files/crashes/`，最多保留 5 份，可在设置页分享；不接任何第三方服务。
+- `scripts/refresh_bundled_snapshot.py` 重新生成随包快照；`.github/workflows/refresh-snapshot.yml` 每月 1 日运行一次（也能手动触发），快照有变化时开 PR。
 
 ### v6（曲目收藏）
 
@@ -133,6 +146,36 @@ sdk.dir=/path/to/android-sdk
 
 CI（`.github/workflows/ci.yml`）在每个 PR 和推到 `main` 时跑同样的单元测试和 `assembleDebug`，调试 APK 作为构建产物保留 14 天；测试失败时会附上测试报告。
 
+CI 还会跑一次未签名的 `assembleRelease`，确认 R8 混淆和资源压缩没出问题。
+
+### 发布
+
+release 构建会打开 R8 混淆和资源压缩。签名信息从仓库根目录的 `keystore.properties` 读取（这个文件和 `*.jks` 都已加入 `.gitignore`）：
+
+```
+storeFile=release.jks
+storePassword=…
+keyAlias=tuneroam
+keyPassword=…
+```
+
+没有这个文件时，改从环境变量读取：`TUNEROAM_KEYSTORE`、`TUNEROAM_KEYSTORE_PASSWORD`、`TUNEROAM_KEY_ALIAS`、`TUNEROAM_KEY_PASSWORD`。两处都没有时，`assembleRelease` 照样构建，产出未签名的 APK。第一次生成密钥：
+
+```bash
+keytool -genkeypair -v -keystore release.jks -alias tuneroam -keyalg RSA -keysize 4096 -validity 10000
+```
+
+密钥丢了就无法再给已安装的用户推送更新，请另外备份。
+
+### 随包电台快照
+
+```bash
+python3 scripts/refresh_bundled_snapshot.py --check   # 只看会取到哪些台
+python3 scripts/refresh_bundled_snapshot.py           # 重写 BundledSnapshotJson.kt
+```
+
+快照的组成：大陆 50、台湾 25、香港 20、新加坡（只要中文台）15，再加 40 座全球热门。只收上次检查正常、有流地址的台；不足 100 座时脚本拒绝覆盖。每月的自动刷新会开 PR，需要在仓库的 Settings → Actions → General 里允许 GitHub Actions 创建 PR。
+
 用 Android Studio 打开仓库，运行 `androidApp` 即可。首次播放会请求通知权限，否则 Android 13 及以上可能没有媒体通知。
 
 很多电台只提供 `http://` 流，因此应用允许明文流量。
@@ -150,6 +193,8 @@ CI（`.github/workflows/ci.yml`）在每个 PR 和推到 `main` 时跑同样的�
 - 标签和国家搜索按 Radio Browser 的规则做精确匹配；名称是部分匹配。国家也可以填两位代码。漫游表盘用的是目录里的国家全名。
 - ICY 曲目名取决于电台是否在流里发送，而且有的台会把台名写进标题。没有 favicon 的台，通知里就没有封面。
 - 收藏、最近播放、连通记录和目录缓存只在本机，没有账号同步。
+- 音量统一只能边播边测，刚换台的头一两秒仍会偏大或偏小；它也不会把一首歌内部的强弱压平。
+- 筛选只作用于下一站和随便一座，不作用于表盘选国家和坏台时的自动换台。
 - 分享链接用的是自定义 scheme。没装应用的人点开没有反应，有的聊天应用也不会把它识别成可点链接。要换成 https App Link，需要一个应用自己的域名；`StationLink.build` 可以改成 https 格式，旧链接照样能解析。
 - Android Auto / 车机浏览树没有在实车上验证。睡眠定时由播放服务按墙钟倒计时，服务进程被系统杀掉之后不会再响。
 
