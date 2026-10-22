@@ -107,6 +107,8 @@ sdk.dir=/path/to/android-sdk
 
 调试 APK：`app/androidApp/build/outputs/apk/debug/androidApp-debug.apk`。
 
+CI（`.github/workflows/ci.yml`）在每个 PR 和推到 `main` 时跑同样的单元测试和 `assembleDebug`，调试 APK 作为构建产物保留 14 天；测试失败时会附上测试报告。
+
 用 Android Studio 打开仓库，运行 `androidApp` 即可。首次播放会请求通知权限，否则 Android 13 及以上可能没有媒体通知。
 
 很多电台只提供 `http://` 流，因此应用允许明文流量。
