@@ -6,6 +6,7 @@ import app.tuneroam.radio.domain.model.Country
 import app.tuneroam.radio.domain.model.LoadResult
 import app.tuneroam.radio.domain.model.Station
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 interface RadioCatalog {
     fun popular(hideBroken: Boolean, limit: Int = 40): Flow<LoadResult<List<Station>>>
@@ -18,10 +19,13 @@ interface RadioCatalog {
 
     suspend fun similar(station: Station): LoadResult<List<Station>>
 
-    suspend fun registerClick(stationUuid: String)
+    /**
+     * A random batch from the whole live catalog. Falls back to a shuffle of the
+     * stations packed into the app when the live catalog cannot be reached.
+     */
+    suspend fun random(limit: Int): LoadResult<List<Station>>
 
-    /** Stations packed into the app. Used when the live catalog cannot be reached. */
-    fun bundled(): List<Station>
+    suspend fun registerClick(stationUuid: String)
 }
 
 interface StationConnectivity {
@@ -54,3 +58,7 @@ interface FavoritesRepository {
 
     suspend fun remove(stationUuid: String)
 }
+
+/** Saved station ids, for the heart on every list row. */
+fun FavoritesRepository.observeIds(): Flow<Set<String>> =
+    observe().map { stations -> stations.mapTo(HashSet()) { it.stationUuid } }

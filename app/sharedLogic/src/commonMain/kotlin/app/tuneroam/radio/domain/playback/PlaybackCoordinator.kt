@@ -1,5 +1,6 @@
 package app.tuneroam.radio.domain.playback
 
+import app.tuneroam.radio.core.epochMillis
 import app.tuneroam.radio.domain.model.Station
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,7 +46,7 @@ sealed interface PlayDirective {
  * Callers must use a single thread (the process main thread on Android).
  */
 class PlaybackCoordinator(
-    private val clock: () -> Long = { System.currentTimeMillis() },
+    private val clock: () -> Long = ::epochMillis,
 ) {
     private val _snapshot = MutableStateFlow(PlaybackSnapshot())
     val snapshot: StateFlow<PlaybackSnapshot> = _snapshot.asStateFlow()
@@ -92,6 +93,11 @@ class PlaybackCoordinator(
             return PlayDirective.Stay
         }
         return apply(opened.failAndNext(), noticeOnNext = PlaybackNotice.TRYING_ALTERNATE)
+    }
+
+    /** Restarts the start timeout, e.g. when the listener resumes a stream that was still buffering. */
+    fun restartTimeout() {
+        session?.markAttemptStart(clock())
     }
 
     fun onPlaying() {

@@ -1,5 +1,6 @@
 package app.tuneroam.radio.domain.playback
 
+import app.tuneroam.radio.core.epochMillis
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -9,7 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * Minutes are the choices the player offers; the deadline itself is testable with a fake clock.
  */
 class SleepTimer(
-    private val clock: () -> Long = { System.currentTimeMillis() },
+    private val clock: () -> Long = ::epochMillis,
 ) {
     private val _deadlineMs = MutableStateFlow<Long?>(null)
     val deadlineMs: StateFlow<Long?> = _deadlineMs.asStateFlow()

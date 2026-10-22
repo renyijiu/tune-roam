@@ -27,19 +27,19 @@ import androidx.media3.session.MediaSession.ConnectionResult
 import app.tuneroam.radio.MainActivity
 import app.tuneroam.radio.R
 import app.tuneroam.radio.core.AppIdentity
-import app.tuneroam.radio.domain.catalog.chooseNextStation
-import app.tuneroam.radio.domain.model.LoadResult
+import app.tuneroam.radio.core.epochMillis
 import app.tuneroam.radio.domain.model.Station
+import app.tuneroam.radio.domain.playback.EnginePhase
 import app.tuneroam.radio.domain.playback.PlayDirective
 import app.tuneroam.radio.domain.playback.PlaybackCoordinator
 import app.tuneroam.radio.domain.playback.PlaybackNotice
 import app.tuneroam.radio.domain.playback.PlaybackPhase
-import app.tuneroam.radio.domain.playback.StreamFallback
+import app.tuneroam.radio.domain.playback.SimilarStations
+import app.tuneroam.radio.domain.playback.SleepTimer
 import app.tuneroam.radio.domain.repository.FavoritesRepository
 import app.tuneroam.radio.domain.repository.HistoryRepository
 import app.tuneroam.radio.domain.repository.RadioCatalog
 import app.tuneroam.radio.domain.repository.ReachabilityRepository
-import app.tuneroam.radio.domain.repository.StationConnectivity
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -50,14 +50,17 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.koin.android.ext.android.inject
 
 /**
  * Media3 library service. Owns ExoPlayer, the notification, and the browsable
  * tree (favorites, popular, countries). Stream order and the start timeout live
- * in [PlaybackCoordinator], which a future iOS shell can drive the same way.
+ * in [PlaybackCoordinator], the hop to a similar station in [SimilarStations], and
+ * the sleep deadline in [SleepTimer]; a future iOS shell drives the same three.
+ *
+ * All mutable state here is touched on the main thread only.
  */
 @OptIn(UnstableApi::class)
 class RadioLibraryService : MediaLibraryService() {
@@ -66,18 +69,20 @@ class RadioLibraryService : MediaLibraryService() {
     private val favorites: FavoritesRepository by inject()
     private val reachability: ReachabilityRepository by inject()
     private val history: HistoryRepository by inject()
-    private val connectivity: StationConnectivity by inject()
+    private val similarStations: SimilarStations by inject()
+    private val sleepTimer: SleepTimer by inject()
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var player: ExoPlayer
     private var librarySession: MediaLibrarySession? = null
     private var watchJob: Job? = null
-    private var watchGeneration = 0
+    private var hopJob: Job? = null
     private var failurePosted = false
     private var autoHops = 0
     private val excludedIds = mutableSetOf<String>()
     private var notedStation: String? = null
     private var publishedTitle: String? = null
+    private var pausedAtMs: Long? = null
 
     private val browser by lazy {
         LibraryBrowser(
@@ -120,6 +125,15 @@ class RadioLibraryService : MediaLibraryService() {
         librarySession = MediaLibrarySession.Builder(this, player, LibraryCallback())
             .setSessionActivity(sessionActivity())
             .build()
+
+        serviceScope.launch {
+            // collectLatest: arming again (say 60 → 15 minutes) drops the old wait.
+            sleepTimer.deadlineMs.collectLatest { deadline ->
+                if (deadline == null) return@collectLatest
+                delay((deadline - epochMillis()).coerceAtLeast(0))
+                if (sleepTimer.consumeIfDue()) player.pause()
+            }
+        }
     }
 
     /**
@@ -167,7 +181,6 @@ class RadioLibraryService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
-        watchJob?.cancel()
         serviceScope.cancel()
         librarySession?.release()
         librarySession = null
@@ -190,14 +203,28 @@ class RadioLibraryService : MediaLibraryService() {
         )
     }
 
+    /**
+     * Reports the engine phase to [PlaybackCoordinator] once a second until the stream
+     * plays. The coordinator owns the start timeout; a pause while buffering is not a
+     * timeout.
+     */
     private fun armWatchdog() {
-        val generation = ++watchGeneration
         watchJob?.cancel()
         watchJob = serviceScope.launch {
-            delay(StreamFallback.START_TIMEOUT_MS)
-            if (generation != watchGeneration) return@launch
-            if (player.playbackState == Player.STATE_READY) return@launch
-            requestFailureAdvance()
+            while (true) {
+                delay(WATCHDOG_TICK_MS)
+                val phase = when {
+                    player.isPlaying -> EnginePhase.PLAYING
+                    player.playWhenReady -> EnginePhase.BUFFERING
+                    else -> EnginePhase.PAUSED
+                }
+                if (phase == EnginePhase.PLAYING) return@launch
+                val directive = coordinator.onClock(phase)
+                if (directive != PlayDirective.Stay) {
+                    handle(directive)
+                    return@launch
+                }
+            }
         }
     }
 
@@ -219,12 +246,12 @@ class RadioLibraryService : MediaLibraryService() {
                 val station = coordinator.snapshot.value.station ?: return
                 player.setMediaItem(mediaItemFor(station, directive.candidate))
                 player.prepare()
+                pausedAtMs = null
                 player.play()
                 armWatchdog()
             }
             PlayDirective.Exhausted -> {
                 watchJob?.cancel()
-                watchGeneration++
                 player.pause()
                 offerSimilar()
             }
@@ -232,33 +259,30 @@ class RadioLibraryService : MediaLibraryService() {
     }
 
     private fun offerSimilar() {
-        if (autoHops >= MAX_AUTO_HOPS) return
+        if (autoHops >= MAX_AUTO_HOPS || hopJob?.isActive == true) return
         val failed = coordinator.snapshot.value.station ?: return
         autoHops += 1
         excludedIds += failed.stationUuid
-        serviceScope.launch(Dispatchers.IO) {
-            runCatching { reachability.note(failed.stationUuid, ok = false) }
-            val pool = when (val result = catalog.similar(failed)) {
-                is LoadResult.Fresh -> result.value
-                is LoadResult.Cached -> result.value
-                is LoadResult.Failed -> emptyList()
-            }
-            var guard = 0
-            val skipped = excludedIds.toMutableSet()
-            while (guard++ < 4) {
-                val scores = reachability.scores()
-                val next = chooseNextStation(failed, pool, skipped, scores) ?: return@launch
-                skipped += next.stationUuid
-                val reachable = connectivity.probe(next)
-                reachability.note(next.stationUuid, reachable)
-                if (!reachable) continue
-                excludedIds += next.stationUuid
-                withContext(Dispatchers.Main.immediate) {
-                    handle(coordinator.begin(next, PlaybackNotice.NEXT_SIMILAR))
-                }
-                return@launch
-            }
+        hopJob = serviceScope.launch {
+            val next = similarStations.findReachable(failed, excludedIds.toSet()) ?: return@launch
+            // The listener may have started something else while we probed.
+            if (coordinator.snapshot.value.station?.stationUuid != failed.stationUuid) return@launch
+            excludedIds += next.stationUuid
+            handle(coordinator.begin(next, PlaybackNotice.NEXT_SIMILAR))
         }
+    }
+
+    /**
+     * A live stream resumed after a long pause would first play minutes-old buffer,
+     * then hit a connection the server already dropped, and that error would look like
+     * a dead station and trigger a hop. Reopen the station at the live edge instead.
+     */
+    private fun resumeAtLiveEdge() {
+        val station = coordinator.snapshot.value.station ?: return
+        failurePosted = false
+        notedStation = null
+        publishedTitle = null
+        handle(coordinator.begin(station))
     }
 
     private fun rememberPlay(station: Station) {
@@ -293,7 +317,6 @@ class RadioLibraryService : MediaLibraryService() {
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             if (isPlaying) {
-                watchGeneration++
                 watchJob?.cancel()
                 coordinator.onPlaying()
                 coordinator.snapshot.value.station?.let(::rememberPlay)
@@ -303,19 +326,24 @@ class RadioLibraryService : MediaLibraryService() {
             }
         }
 
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            if (!playWhenReady) {
+                pausedAtMs = epochMillis()
+                return
+            }
+            val pausedAt = pausedAtMs ?: return
+            pausedAtMs = null
+            if (epochMillis() - pausedAt >= LIVE_RESUME_AFTER_MS) {
+                serviceScope.launch { resumeAtLiveEdge() }
+            } else {
+                // Time spent paused while buffering is not a slow start.
+                coordinator.restartTimeout()
+            }
+        }
+
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
             coordinator.onIcyTitle(mediaMetadata.title?.toString())
             publishMetadata(coordinator.snapshot.value.icyTitle)
-        }
-
-        override fun onVolumeChanged(volume: Float) {
-            // A call can duck the player instead of pausing it. Keep the station at
-            // full player volume and pause, so a call or a noisy route does not
-            // quietly fade the radio under the system volume.
-            if (volume < 0.99f) {
-                player.volume = 1f
-                if (player.playWhenReady) player.pause()
-            }
         }
     }
 
@@ -348,8 +376,10 @@ class RadioLibraryService : MediaLibraryService() {
             val station = source.readStation() ?: return Futures.immediateFuture(mediaItems)
             autoHops = 0
             excludedIds.clear()
+            hopJob?.cancel()
             notedStation = null
             publishedTitle = null
+            pausedAtMs = null
             val directive = coordinator.begin(station)
             serviceScope.launch(Dispatchers.IO) {
                 runCatching { catalog.registerClick(station.stationUuid) }
@@ -399,6 +429,10 @@ class RadioLibraryService : MediaLibraryService() {
         /** Same id Media3's DefaultMediaNotificationProvider uses, so the real player notification replaces this one. */
         const val MEDIA_NOTIFICATION_ID = 1001
         const val MAX_AUTO_HOPS = 3
+        const val WATCHDOG_TICK_MS = 1_000L
+
+        /** Longer than this, a paused stream is reopened rather than resumed from its buffer. */
+        const val LIVE_RESUME_AFTER_MS = 30_000L
     }
 }
 

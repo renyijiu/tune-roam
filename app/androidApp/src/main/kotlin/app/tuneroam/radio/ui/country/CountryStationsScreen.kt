@@ -96,7 +96,7 @@ fun CountryStationsScreen(
         } else if (state.stations.isEmpty() && state.error == null) {
             item { EmptyNote(stringResource(R.string.empty_country)) }
         }
-        items(state.stations, key = { "${it.stationUuid}-${it.name}" }) { station ->
+        items(state.stations, key = { it.stationUuid }) { station ->
             StationRow(
                 station = station,
                 favorite = station.stationUuid in favorites,

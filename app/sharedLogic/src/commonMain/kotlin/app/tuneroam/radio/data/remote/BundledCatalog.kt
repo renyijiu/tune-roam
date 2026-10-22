@@ -46,6 +46,9 @@ object BundledCatalog {
             }
             .sortedByDescending { it.stationCount }
 
+    fun random(limit: Int): List<Station> =
+        stations.filter { it.hasStream }.shuffled().take(limit)
+
     fun inCountry(country: String, hideBroken: Boolean, limit: Int = 100): List<Station> =
         search(CatalogQuery(country = country, hideBroken = hideBroken, limit = limit))
 

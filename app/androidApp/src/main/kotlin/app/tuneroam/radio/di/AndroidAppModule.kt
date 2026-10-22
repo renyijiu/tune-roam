@@ -23,7 +23,7 @@ import org.koin.dsl.module
 val androidAppModule = module {
     single<PlaybackCommands> { MediaSessionCommands(androidContext()) }
     viewModel { HomeViewModel(get(), get(), get(), get(), get()) }
-    viewModel { RoamViewModel(get(), get()) }
+    viewModel { RoamViewModel(get(), get(), get()) }
     viewModel { CountriesViewModel(get()) }
     viewModel { parameters ->
         CountryStationsViewModel(
@@ -34,5 +34,5 @@ val androidAppModule = module {
         )
     }
     viewModel { FavoritesViewModel(get(), get(), get()) }
-    viewModel { PlayerViewModel(get(), get(), get(), get(), get(), get()) }
+    viewModel { PlayerViewModel(get(), get(), get(), get(), get()) }
 }

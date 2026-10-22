@@ -6,6 +6,7 @@ import app.tuneroam.radio.domain.model.Station
 import app.tuneroam.radio.domain.playback.PlaybackCommands
 import app.tuneroam.radio.domain.repository.FavoritesRepository
 import app.tuneroam.radio.domain.repository.HistoryRepository
+import app.tuneroam.radio.domain.repository.observeIds
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -18,6 +19,9 @@ class FavoritesViewModel(
 ) : ViewModel() {
     val stations: StateFlow<List<Station>> = favorites.observe()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val savedIds: StateFlow<Set<String>> = favorites.observeIds()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
     val recent: StateFlow<List<Station>> = history.observe()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

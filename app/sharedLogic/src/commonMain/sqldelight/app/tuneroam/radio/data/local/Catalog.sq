@@ -175,6 +175,11 @@ selectReachability:
 SELECT *
 FROM reachability;
 
+selectReachabilityById:
+SELECT *
+FROM reachability
+WHERE stationUuid = :stationUuid;
+
 upsertReachability:
 INSERT OR REPLACE INTO reachability (
     stationUuid,

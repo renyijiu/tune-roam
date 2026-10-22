@@ -12,6 +12,7 @@ import app.tuneroam.radio.data.remote.RadioBrowserClient
 import app.tuneroam.radio.data.remote.ServerDirectory
 import app.tuneroam.radio.data.repository.OfflineFirstCatalog
 import app.tuneroam.radio.domain.playback.PlaybackCoordinator
+import app.tuneroam.radio.domain.playback.SimilarStations
 import app.tuneroam.radio.domain.playback.SleepTimer
 import app.tuneroam.radio.domain.repository.FavoritesRepository
 import app.tuneroam.radio.domain.repository.HistoryRepository
@@ -39,6 +40,7 @@ private val dataModule = module {
     single<StationConnectivity> { KtorStationConnectivity(get()) }
     single<RadioCatalog> { OfflineFirstCatalog(get(), get()) }
     single { PlaybackCoordinator() }
+    single { SimilarStations(get(), get(), get()) }
     single { SleepTimer() }
 }
 

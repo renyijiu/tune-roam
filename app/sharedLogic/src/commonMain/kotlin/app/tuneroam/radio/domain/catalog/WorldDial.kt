@@ -38,11 +38,13 @@ object WorldDial {
         DialStop("Australia", "Australia", "澳大利亚", "AU", 134.0),
     ).sortedBy { it.longitude }
 
-    fun indexOfCode(isoCode: String): Int {
-        val found = stops.indexOfFirst { it.isoCode.equals(isoCode, ignoreCase = true) }
-        if (found >= 0) return found
-        return stops.indexOfFirst { it.isoCode == "CN" }.coerceAtLeast(0)
-    }
+    /** Null when the country has no stop on the dial. */
+    fun indexOfCode(isoCode: String): Int? =
+        stops.indexOfFirst { it.isoCode.equals(isoCode, ignoreCase = true) }.takeIf { it >= 0 }
+
+    /** Where the dial starts. */
+    val homeIndex: Int
+        get() = indexOfCode("CN") ?: 0
 
     /** Degrees that put [index] under the top needle. Inverse of [dialIndex]. */
     fun rotationFor(index: Int): Float {

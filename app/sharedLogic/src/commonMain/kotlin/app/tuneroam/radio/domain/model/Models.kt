@@ -23,6 +23,9 @@ data class Station(
     val tagList: List<String>
         get() = tags.split(',').map { it.trim() }.filter { it.isNotEmpty() }
 
+    val hasStream: Boolean
+        get() = url.isNotBlank() || urlResolved.isNotBlank()
+
     fun technicalLabel(): String = buildList {
         if (bitrate > 0) add("$bitrate kbps")
         if (codec.isNotBlank()) add(codec.uppercase())
@@ -103,4 +106,11 @@ sealed interface LoadResult<out T> {
         val origin: CatalogOrigin = CatalogOrigin.CACHE,
     ) : LoadResult<T>
     data class Failed(val reason: FailureReason) : LoadResult<Nothing>
+}
+
+/** The list a result carries, or empty when it failed. */
+fun <T> LoadResult<List<T>>.valueOrEmpty(): List<T> = when (this) {
+    is LoadResult.Fresh -> value
+    is LoadResult.Cached -> value
+    is LoadResult.Failed -> emptyList()
 }

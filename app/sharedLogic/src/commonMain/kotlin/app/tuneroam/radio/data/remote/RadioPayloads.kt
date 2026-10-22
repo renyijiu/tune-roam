@@ -60,6 +60,8 @@ object RadioPayloads {
         RadioJson.decodeFromString<List<StationDto>>(json)
             .map { it.toDomain() }
             .filter { it.stationUuid.isNotBlank() }
+            // Lists key rows by uuid; a repeated station would crash a LazyColumn.
+            .distinctBy { it.stationUuid }
 
     fun countries(json: String): List<Country> =
         RadioJson.decodeFromString<List<CountryDto>>(json)

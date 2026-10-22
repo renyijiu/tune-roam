@@ -2,21 +2,6 @@ package app.tuneroam.radio.domain.catalog
 
 import app.tuneroam.radio.domain.model.Station
 
-data class MirrorSample(
-    val host: String,
-    val latencyMs: Long?,
-)
-
-/**
- * Short probes of every mirror, then the smallest latency that actually answered.
- * A null latency is a timeout or a DNS failure and is ignored.
- */
-fun fastestMirror(samples: List<MirrorSample>): String? =
-    samples
-        .mapNotNull { sample -> sample.latencyMs?.let { sample.host to it } }
-        .minWithOrNull(compareBy<Pair<String, Long>> { it.second }.thenBy { it.first })
-        ?.first
-
 /** Remembered host first, then whatever discovery returned, then the built-in list. */
 fun mirrorHosts(remembered: String?, discovered: List<String>, known: List<String>): List<String> =
     buildList {

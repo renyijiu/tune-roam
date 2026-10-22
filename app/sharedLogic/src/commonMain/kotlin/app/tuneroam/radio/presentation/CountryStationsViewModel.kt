@@ -7,13 +7,13 @@ import app.tuneroam.radio.domain.model.LoadResult
 import app.tuneroam.radio.domain.model.Station
 import app.tuneroam.radio.domain.playback.PlaybackCommands
 import app.tuneroam.radio.domain.repository.FavoritesRepository
+import app.tuneroam.radio.domain.repository.observeIds
 import app.tuneroam.radio.domain.repository.RadioCatalog
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -36,8 +36,7 @@ class CountryStationsViewModel(
     private val _state = MutableStateFlow(CountryStationsUiState(country = country))
     val state: StateFlow<CountryStationsUiState> = _state.asStateFlow()
 
-    val favoriteIds: StateFlow<Set<String>> = favorites.observe()
-        .map { stations -> stations.map { it.stationUuid }.toSet() }
+    val favoriteIds: StateFlow<Set<String>> = favorites.observeIds()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
     private var loadJob: Job? = null

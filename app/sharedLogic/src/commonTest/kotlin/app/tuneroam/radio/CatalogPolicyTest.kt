@@ -1,12 +1,10 @@
 package app.tuneroam.radio
 
 import app.tuneroam.radio.data.remote.BundledCatalog
-import app.tuneroam.radio.domain.catalog.MirrorSample
 import app.tuneroam.radio.domain.catalog.ReachScore
 import app.tuneroam.radio.domain.catalog.WorldDial
 import app.tuneroam.radio.domain.catalog.applyChinaFilter
 import app.tuneroam.radio.domain.catalog.chooseNextStation
-import app.tuneroam.radio.domain.catalog.fastestMirror
 import app.tuneroam.radio.domain.catalog.mirrorHosts
 import app.tuneroam.radio.domain.model.Station
 import app.tuneroam.radio.domain.playback.SleepTimer
@@ -17,19 +15,6 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class CatalogPolicyTest {
-    @Test
-    fun fastestMirrorIgnoresTimeoutsAndKeepsTheQuickest() {
-        val host = fastestMirror(
-            listOf(
-                MirrorSample("slow.example", 900),
-                MirrorSample("down.example", null),
-                MirrorSample("fast.example", 120),
-            ),
-        )
-        assertEquals("fast.example", host)
-        assertNull(fastestMirror(listOf(MirrorSample("down.example", null))))
-    }
-
     @Test
     fun mirrorListPrefersTheRememberedHost() {
         val hosts = mirrorHosts(
@@ -83,7 +68,9 @@ class CatalogPolicyTest {
         assertTrue(codes.indexOf("CN") < codes.indexOf("HK"))
         assertTrue(codes.indexOf("HK") < codes.indexOf("TW"))
         assertEquals(WorldDial.stops, WorldDial.stops.sortedBy { it.longitude })
-        val china = WorldDial.indexOfCode("CN")
+        val china = WorldDial.homeIndex
+        assertEquals(china, WorldDial.indexOfCode("cn"))
+        assertNull(WorldDial.indexOfCode("PE"))
         assertEquals(china, WorldDial.dialIndex(WorldDial.rotationFor(china)))
         assertEquals(0, WorldDial.dialIndex(0f))
     }
