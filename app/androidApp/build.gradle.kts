@@ -106,6 +106,7 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.koin.compose)
     implementation(libs.coil)
+    implementation(libs.coil.svg)
     implementation(libs.work.runtime)
     implementation(libs.coroutines.android)
     implementation(libs.serialization.json)
