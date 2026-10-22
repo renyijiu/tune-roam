@@ -1,6 +1,7 @@
 package app.tuneroam.radio.ui.home
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -12,22 +13,28 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.tuneroam.radio.R
@@ -76,8 +83,14 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp),
                 singleLine = true,
-                placeholder = { Text(stringResource(R.string.search_hint)) },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                placeholder = {
+                    Text(
+                        text = stringResource(state.field.hint),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                leadingIcon = { FieldPicker(selected = state.field, onSelect = viewModel::onField) },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { viewModel.submit() }),
                 trailingIcon = {
@@ -88,33 +101,10 @@ fun HomeScreen(
             )
         }
         item {
-            val fields = listOf(
-                SearchField.NAME to R.string.field_name,
-                SearchField.TAG to R.string.field_tag,
-                SearchField.COUNTRY to R.string.field_country,
-            )
-            SingleChoiceSegmentedButtonRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-            ) {
-                fields.forEachIndexed { index, (field, label) ->
-                    SegmentedButton(
-                        selected = state.field == field,
-                        onClick = { viewModel.onField(field) },
-                        shape = SegmentedButtonDefaults.itemShape(index, fields.size),
-                        icon = {},
-                    ) {
-                        Text(stringResource(label))
-                    }
-                }
-            }
-        }
-        item {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                    .padding(start = 20.dp, end = 20.dp, top = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
@@ -205,3 +195,51 @@ fun HomeScreen(
         }
     }
 }
+
+/** Sits inside the search box so it reads as "search by this", not as a page switch. */
+@Composable
+private fun FieldPicker(selected: SearchField, onSelect: (SearchField) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val label = stringResource(selected.label)
+    val description = stringResource(R.string.search_by, label)
+    Box {
+        TextButton(
+            onClick = { open = true },
+            contentPadding = PaddingValues(start = 12.dp, end = 4.dp),
+            modifier = Modifier.semantics { contentDescription = description },
+        ) {
+            Text(label)
+            Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            SearchField.entries.forEach { field ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(field.label)) },
+                    onClick = {
+                        open = false
+                        onSelect(field)
+                    },
+                    trailingIcon = if (field == selected) {
+                        { Icon(Icons.Filled.Check, contentDescription = null) }
+                    } else {
+                        null
+                    },
+                )
+            }
+        }
+    }
+}
+
+private val SearchField.label: Int
+    get() = when (this) {
+        SearchField.NAME -> R.string.field_name
+        SearchField.TAG -> R.string.field_tag
+        SearchField.COUNTRY -> R.string.field_country
+    }
+
+private val SearchField.hint: Int
+    get() = when (this) {
+        SearchField.NAME -> R.string.search_hint_name
+        SearchField.TAG -> R.string.search_hint_tag
+        SearchField.COUNTRY -> R.string.search_hint_country
+    }

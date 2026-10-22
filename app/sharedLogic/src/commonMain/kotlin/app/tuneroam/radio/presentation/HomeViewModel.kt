@@ -90,7 +90,10 @@ class HomeViewModel(
     }
 
     fun onField(field: SearchField) {
+        if (field == _state.value.field) return
         _state.update { it.copy(field = field) }
+        // A typed query is already a search the listener means; rerun it under the new field.
+        if (_state.value.query.isNotBlank()) search()
     }
 
     fun onHideBroken(hide: Boolean) {
