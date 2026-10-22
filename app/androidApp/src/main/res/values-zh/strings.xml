@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">随声</string>
     <string name="tagline">顺着电波，把地图听一遍。</string>
-    <string name="tab_home">首页</string>
+    <string name="tab_search">搜索</string>
     <string name="tab_countries">国家</string>
     <string name="tab_favorites">收藏</string>
     <string name="search_hint_name">电台名称</string>
