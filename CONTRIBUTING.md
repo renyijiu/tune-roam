@@ -13,7 +13,7 @@
 构建和测试命令见 [README](README.md#构建和运行)。提交 PR 之前请在本地跑通单元测试：
 
 ```bash
-./gradlew :app:sharedLogic:testDebugUnitTest :app:androidApp:testDebugUnitTest
+./gradlew :app:sharedLogic:testAndroidHostTest :app:androidApp:testDebugUnitTest
 ```
 
 CI 会再跑一遍测试、`assembleDebug` 和 `assembleRelease`（R8），都通过才会合并。

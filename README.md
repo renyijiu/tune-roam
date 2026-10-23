@@ -118,7 +118,7 @@ scripts/             随包电台快照的生成脚本
 
 ## 构建和运行
 
-需要 JDK 21 和 Android SDK（compileSdk 35）。设置 `ANDROID_HOME`，或在项目根写 `local.properties`：
+需要 JDK 21 和 Android SDK（compileSdk 37）。设置 `ANDROID_HOME`，或在项目根写 `local.properties`：
 
 ```
 sdk.dir=/path/to/android-sdk
@@ -133,7 +133,7 @@ sdk.dir=/path/to/android-sdk
 单元测试：
 
 ```bash
-./gradlew :app:sharedLogic:testDebugUnitTest :app:androidApp:testDebugUnitTest
+./gradlew :app:sharedLogic:testAndroidHostTest :app:androidApp:testDebugUnitTest
 ```
 
 调试 APK 在 `app/androidApp/build/outputs/apk/debug/androidApp-debug.apk`。也可以用 Android Studio 打开仓库直接运行 `androidApp`。首次播放会请求通知权限，否则 Android 13 及以上可能没有媒体通知。很多电台只提供 `http://` 流，因此应用允许明文流量。

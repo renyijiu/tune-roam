@@ -1,5 +1,5 @@
 [versions]
-agp = "8.13.2"
+agp = "9.4.1"
 kotlin = "2.4.21"
 composeBom = "2025.12.01"
 media3 = "1.8.1"
@@ -52,8 +52,7 @@ work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-android-library = { id = "com.android.library", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+android-kmp-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

@@ -3,7 +3,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
@@ -31,7 +30,7 @@ val releaseSigning: Map<String, String>? = run {
 
 android {
     namespace = "app.tuneroam.radio"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "app.tuneroam.radio"
@@ -115,5 +114,5 @@ dependencies {
     implementation(libs.media3.exoplayer.hls)
     implementation(libs.media3.session)
 
-    testImplementation(kotlin("test"))
+    testImplementation(kotlin("test-junit"))
 }
