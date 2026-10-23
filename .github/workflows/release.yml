@@ -41,7 +41,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Unit tests
-        run: ./gradlew :app:sharedLogic:testDebugUnitTest :app:androidApp:testDebugUnitTest
+        run: ./gradlew :app:sharedLogic:testAndroidHostTest :app:androidApp:testDebugUnitTest
 
       # An unsigned APK cannot be installed, so a release without signing secrets fails here.
       - name: Restore keystore

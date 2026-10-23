@@ -2,16 +2,20 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.android.library)
+    alias(libs.plugins.android.kmp.library)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.sqldelight)
 }
 
 kotlin {
-    androidTarget {
+    android {
+        namespace = "app.tuneroam.radio.shared"
+        compileSdk = 37
+        minSdk = 26
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
         }
+        withHostTest {}
     }
 
     sourceSets {
@@ -37,21 +41,9 @@ kotlin {
             implementation(libs.koin.android)
             implementation(libs.coroutines.android)
         }
-        getByName("androidUnitTest").dependencies {
+        getByName("androidHostTest").dependencies {
             implementation(libs.sqldelight.jvm)
         }
-    }
-}
-
-android {
-    namespace = "app.tuneroam.radio.shared"
-    compileSdk = 35
-    defaultConfig {
-        minSdk = 26
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
     }
 }
 
