@@ -42,7 +42,8 @@ import kotlin.random.Random
  * The station as a living signal. Connecting: sparks spiral in toward the artwork while a
  * comet circles it, gathering the stream. The moment it answers: a flash, a shockwave, and
  * the sparks blow outward. Playing: a liquid ring breathes around the artwork and sparks
- * drift off it like broadcast. Paused: the ring stills to a circle and the sparks fade.
+ * drift off it like broadcast, both swelling with the audio. Paused: the ring stills to a
+ * circle and the sparks fade.
  */
 @Composable
 fun SignalOrb(
@@ -68,6 +69,7 @@ fun SignalOrb(
         previous = phase
     }
     val time = animationClock(running = !reduced && (playing || connecting || burst.isRunning))
+    val audioLevel = rememberAudioLevel(active = playing && !reduced)
     val sparks = remember { Sparks() }
     val ring = remember { Path() }
 
@@ -80,10 +82,14 @@ fun SignalOrb(
             val kick = if (b < 1f) sin(PI.toFloat() * b) else 0f
             val a = lerp(primary(), Color(0xFFF07178), failed)
             val c = lerp(secondary(), Color(0xFFF07178), failed)
+            // The audio takes over from the idle animation as playback fades in; 1 is this station's usual level.
+            val loud = audioLevel.value
+            val follow = if (reduced) 0f else energy
+            val halo = 1f + (0.75f + 0.3f * loud.coerceAtMost(1.5f) - 1f) * follow
 
             drawCircle(
                 brush = Brush.radialGradient(
-                    listOf(a.copy(alpha = 0.38f * energy + 0.1f), c.copy(alpha = 0.12f * energy), Color.Transparent),
+                    listOf(a.copy(alpha = 0.38f * energy * halo + 0.1f), c.copy(alpha = 0.12f * energy), Color.Transparent),
                     center = center,
                     radius = outer,
                 ),
@@ -91,11 +97,12 @@ fun SignalOrb(
                 center = center,
             )
 
-            sparks.draw(this, t, art, outer, energy, gather, kick, a, c)
+            sparks.draw(this, t, art, outer, energy, gather, kick, loud, follow, a, c)
 
             // Three liquid rings; each wobbles at its own tempo so they slide across one another.
             val level = 0.15f + 0.85f * energy
-            val beat = 0.75f + 0.25f * (0.5f + 0.5f * sin(t * 4.4f)).pow(3)
+            val heartbeat = 0.75f + 0.25f * (0.5f + 0.5f * sin(t * 4.4f)).pow(3)
+            val beat = heartbeat + ((0.3f + 0.7f * loud).coerceAtMost(1.4f) - heartbeat) * follow
             listOf(a, c, Color.White).forEachIndexed { layer, color ->
                 val base = art + (8f + layer * 5f).dp.toPx()
                 val amp = (3f + 5f * energy).dp.toPx() * level * beat * (1f - layer * 0.25f)
@@ -198,20 +205,25 @@ private class Sparks {
         energy: Float,
         gather: Float,
         kick: Float,
+        loud: Float,
+        follow: Float,
         a: Color,
         c: Color,
     ) = with(scope) {
         val start = art + 16.dp.toPx()
         val span = outer - start
+        // Brighter and pushed a little further out when it is loud, dim in quiet passages.
+        val glow = 1f + (0.3f + 0.7f * loud.coerceAtMost(1.6f) - 1f) * follow
+        val swell = outer * 0.12f * (loud - 1f).coerceIn(0f, 0.8f) * follow
         for (i in 0 until count) {
             val life = fract(t * speed[i] + offset[i])
             val color = lerp(a, c, tint[i])
             val dot = dotSize[i].dp.toPx()
             if (energy > 0.01f || kick > 0f) {
                 // Broadcast: drift outward and fade, curling slightly.
-                val r = start + span * life.pow(0.8f) + outer * 0.45f * kick * (0.5f + offset[i])
+                val r = start + span * life.pow(0.8f) + (outer * 0.45f * kick + swell) * (0.5f + offset[i])
                 val th = angle[i] + life * 0.35f
-                val alpha = (1f - life) * (life * 6f).coerceAtMost(1f) * (energy * 0.85f + kick)
+                val alpha = (1f - life) * (life * 6f).coerceAtMost(1f) * (energy * 0.85f * glow + kick)
                 drawCircle(
                     color = color.copy(alpha = alpha.coerceIn(0f, 1f)),
                     radius = dot,
