@@ -115,4 +115,5 @@ dependencies {
     implementation(libs.media3.session)
 
     testImplementation(kotlin("test-junit"))
+    testImplementation(libs.coroutines.test)
 }

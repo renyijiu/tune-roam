@@ -1,32 +1,24 @@
 package app.tuneroam.radio.ui.theme
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 
+/**
+ * Stars drifting down behind the browse screens. They move a few pixels a second, less than
+ * one per frame, so the drift steps at about 15 fps: it looks the same and spares the whole
+ * screen redrawing every frame while nothing else moves. The step is twice the mini player's,
+ * so while a station plays the two land on the same frames.
+ */
 @Composable
 fun Starfield(modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "starfield")
-    val drift by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 32_000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "drift",
-    )
+    val reduced = rememberReducedMotion()
+    val time = animationClock(running = !reduced, stepMillis = 2 * Motion.AMBIENT_STEP_MS)
     Canvas(modifier.fillMaxSize()) {
+        val drift = time.value % LOOP_SECONDS / LOOP_SECONDS
         repeat(STAR_COUNT) { index ->
             val x = ((index * 97 % 1000) / 1000f) * size.width
             val baseY = (index * 53 % 1000) / 1000f
@@ -40,3 +32,4 @@ fun Starfield(modifier: Modifier = Modifier) {
 }
 
 private const val STAR_COUNT = 78
+private const val LOOP_SECONDS = 32f

@@ -23,6 +23,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.delay
 
 /**
  * The app's motion language is a radio finding a signal: static while tuning, a clean
@@ -36,6 +37,13 @@ object Motion {
     val Bouncy = spring<Float>(dampingRatio = 0.4f, stiffness = 600f)
 
     val Gentle = spring<Float>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
+
+    /**
+     * Small ambient motion, like the mini player's signal line, steps at about 30 fps: it
+     * sits on every browse screen while a station plays, and full rate would redraw the
+     * whole screen each frame for a few pixels of movement.
+     */
+    const val AMBIENT_STEP_MS = 33L
 }
 
 /** True when the system animator scale is off; loops stop and text skips its decode. */
@@ -48,22 +56,49 @@ fun rememberReducedMotion(): Boolean {
 }
 
 /**
- * Seconds that tick every frame while [running]. Read it inside a draw or layer block so
- * only that phase repeats, not composition. Pausing keeps the value, so shapes hold still.
+ * Seconds that tick every frame while [running], or every [stepMillis] (see [steppedFrames]).
+ * Read it inside a draw or layer block so only that phase repeats, not composition. Pausing
+ * keeps the value, so shapes hold still.
  */
 @Composable
-fun animationClock(running: Boolean): State<Float> {
+fun animationClock(running: Boolean, stepMillis: Long = 0L): State<Float> {
     val seconds = remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(running) {
+    LaunchedEffect(running, stepMillis) {
         if (!running) return@LaunchedEffect
         val offset = (seconds.floatValue * 1_000_000_000L).toLong()
         val start = withFrameNanos { it } - offset
-        while (true) {
-            withFrameNanos { now -> seconds.floatValue = (now - start) / 1_000_000_000f }
-        }
+        steppedFrames(stepMillis) { now -> seconds.floatValue = (now - start) / 1_000_000_000f }
     }
     return seconds
 }
+
+/**
+ * Calls [onStep] with the frame time on every frame, or with [stepMillis] > 0 on the first
+ * frame of each step-long slot. Slots count from the frame clock's zero, so everything on a
+ * screen stepping by the same interval, or a multiple of it, moves on the same frames and the
+ * screen redraws once for all of them. Between steps it sleeps instead of waking every frame.
+ */
+suspend fun steppedFrames(stepMillis: Long, onStep: (frameNanos: Long) -> Unit): Nothing {
+    val step = stepMillis * 1_000_000L
+    var slot = -1L
+    while (true) {
+        val now = withFrameNanos { now ->
+            val current = if (step > 0) now / step else now
+            if (current != slot) {
+                slot = current
+                onStep(now)
+            }
+            now
+        }
+        if (step > 0) {
+            val untilNext = ((slot + 1) * step - now) / 1_000_000L - FRAME_SLACK_MS
+            if (untilNext > 0) delay(untilNext)
+        }
+    }
+}
+
+/** Wake this long before the next step so its first frame is not missed. */
+private const val FRAME_SLACK_MS = 12L
 
 /** Shrinks a little while pressed and springs back on release. */
 @Composable

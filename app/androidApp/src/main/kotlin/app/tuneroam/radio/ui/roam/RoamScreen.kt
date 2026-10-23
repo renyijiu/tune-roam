@@ -52,6 +52,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -118,6 +119,7 @@ fun RoamScreen(
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
     val reduced = rememberReducedMotion()
+    val tracePath = remember { Path() }
 
     val rotation = remember { Animatable(WorldDial.rotationFor(state.index)) }
     var dragging by remember { mutableStateOf(false) }
@@ -279,6 +281,7 @@ fun RoamScreen(
                     .height(36.dp),
             ) {
                 drawSignalTrace(
+                    path = tracePath,
                     center = center,
                     width = size.width,
                     amplitude = size.height * 0.42f,

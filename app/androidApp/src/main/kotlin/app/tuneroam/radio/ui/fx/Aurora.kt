@@ -20,7 +20,7 @@ import kotlin.math.sin
 /**
  * Northern lights in the station's colors, with a little film grain. [energy] 0..1 brightens
  * the curtains while the station plays. Android 13+ runs a shader; older phones get drifting
- * glows in the same colors.
+ * glows in the same colors. With [moving] false the curtains hold where they are.
  */
 @Composable
 fun AuroraBackground(
@@ -28,9 +28,10 @@ fun AuroraBackground(
     secondary: () -> Color,
     energy: () -> Float,
     modifier: Modifier = Modifier,
+    moving: Boolean = true,
 ) {
     val reduced = rememberReducedMotion()
-    val time = animationClock(running = !reduced)
+    val time = animationClock(running = !reduced && moving)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         ShaderAurora(primary, secondary, energy, time, modifier)
     } else {

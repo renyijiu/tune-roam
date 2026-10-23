@@ -41,6 +41,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +53,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -84,6 +86,7 @@ import app.tuneroam.radio.ui.fx.audioScale
 import app.tuneroam.radio.ui.fx.drawSignalTrace
 import app.tuneroam.radio.ui.fx.rememberAudioLevel
 import app.tuneroam.radio.ui.fx.rememberStationColors
+import app.tuneroam.radio.ui.theme.Motion
 import app.tuneroam.radio.ui.theme.Signal
 import app.tuneroam.radio.ui.theme.animationClock
 import app.tuneroam.radio.ui.theme.popOnChange
@@ -98,18 +101,25 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun PlayerBackdrop(snapshot: PlaybackSnapshot, modifier: Modifier = Modifier) {
     val (primary, secondary) = rememberStationColors(snapshot.station)
-    val energy by animateFloatAsState(
-        targetValue = if (snapshot.phase == PlaybackPhase.PLAYING) 1f else 0.25f,
+    val energy = animateFloatAsState(
+        targetValue = if (snapshot.phase == PlaybackPhase.PLAYING) 1f else RESTING_ENERGY,
         animationSpec = tween(1_200),
         label = "aurora-energy",
     )
+    // Paused, the curtains dim and then hold still, so the screen stops redrawing a full-screen shader.
+    val resting = snapshot.phase != PlaybackPhase.PLAYING && snapshot.phase != PlaybackPhase.CONNECTING
+    val settled by remember(resting) { derivedStateOf { resting && energy.value == RESTING_ENERGY } }
     AuroraBackground(
         primary = { primary.value },
         secondary = { secondary.value },
-        energy = { energy },
+        energy = { energy.value },
         modifier = modifier,
+        moving = !settled,
     )
 }
+
+/** How bright the aurora stays while nothing plays. */
+private const val RESTING_ENERGY = 0.25f
 
 @Composable
 fun MiniPlayerBar(
@@ -121,14 +131,19 @@ fun MiniPlayerBar(
     val station = playback.station ?: return
     val (primary, _) = rememberStationColors(station)
     val playing = playback.phase == PlaybackPhase.PLAYING
+    val tracePath = remember { Path() }
     val reduced = rememberReducedMotion()
-    val time = animationClock(running = !reduced && (playing || playback.phase == PlaybackPhase.CONNECTING))
+    // Steps rather than runs every frame: this bar sits on every browse screen while a station plays.
+    val time = animationClock(
+        running = !reduced && (playing || playback.phase == PlaybackPhase.CONNECTING),
+        stepMillis = Motion.AMBIENT_STEP_MS,
+    )
     val noise by animateFloatAsState(
         targetValue = if (playback.phase == PlaybackPhase.CONNECTING) 0.9f else 0f,
         animationSpec = tween(500),
         label = "mini-noise",
     )
-    val audioLevel = rememberAudioLevel(active = playing && !reduced)
+    val audioLevel = rememberAudioLevel(active = playing && !reduced, stepMillis = Motion.AMBIENT_STEP_MS)
     val audioWeight by animateFloatAsState(if (playing && !reduced) 1f else 0f, tween(500), label = "mini-audio")
     val shape = RoundedCornerShape(22.dp)
     Row(
@@ -146,6 +161,7 @@ fun MiniPlayerBar(
             .drawBehind {
                 // A live signal line along the bottom edge: static while connecting, a carrier once on air.
                 drawSignalTrace(
+                    path = tracePath,
                     center = Offset(size.width / 2f, size.height - 3.dp.toPx()),
                     width = size.width * 0.9f,
                     amplitude = 2.5.dp.toPx(),
@@ -170,6 +186,7 @@ fun MiniPlayerBar(
                     playing = playing,
                     color = primary.value,
                     modifier = Modifier.size(width = 14.dp, height = 12.dp),
+                    stepMillis = Motion.AMBIENT_STEP_MS,
                 )
                 Text(
                     text = station.name,
