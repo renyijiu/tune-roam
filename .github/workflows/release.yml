@@ -38,7 +38,7 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       - name: Unit tests
         run: ./gradlew :app:sharedLogic:testAndroidHostTest :app:androidApp:testDebugUnitTest
