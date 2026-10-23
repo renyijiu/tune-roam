@@ -24,7 +24,7 @@ jobs:
 
       # The runner image ships the Android SDK with licenses accepted; AGP fetches
       # any missing platform itself.
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       - name: Unit tests
         run: ./gradlew :app:sharedLogic:testAndroidHostTest :app:androidApp:testDebugUnitTest
