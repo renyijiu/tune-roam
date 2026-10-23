@@ -35,6 +35,7 @@ import app.tuneroam.radio.playback.AudioMeter
 import app.tuneroam.radio.ui.theme.Signal
 import app.tuneroam.radio.ui.theme.animationClock
 import app.tuneroam.radio.ui.theme.rememberReducedMotion
+import app.tuneroam.radio.ui.theme.steppedFrames
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.floor
@@ -104,12 +105,12 @@ private fun staticFor(c: Char, random: Random): Char {
     return pool[random.nextInt(pool.length)]
 }
 
-/** Three bars that dance while [playing] and lie flat when paused. */
+/** Three bars that dance while [playing] and lie flat when paused; [stepMillis] as in [animationClock]. */
 @Composable
-fun EqualizerBars(playing: Boolean, modifier: Modifier = Modifier, color: Color = Signal) {
+fun EqualizerBars(playing: Boolean, modifier: Modifier = Modifier, color: Color = Signal, stepMillis: Long = 0L) {
     val reduced = rememberReducedMotion()
     val level by animateFloatAsState(if (playing) 1f else 0f, tween(360), label = "eq")
-    val time = animationClock(running = playing && !reduced)
+    val time = animationClock(running = playing && !reduced, stepMillis = stepMillis)
     Canvas(modifier) {
         val t = time.value
         val gap = size.width / 7f
@@ -131,20 +132,19 @@ fun EqualizerBars(playing: Boolean, modifier: Modifier = Modifier, color: Color 
 
 /**
  * The playing audio's level, smoothed for drawing: jumps up with a beat and settles back.
- * Updates every frame while [active] and holds still otherwise. Read it in a draw block.
+ * Updates every frame, or every [stepMillis], while [active] and holds still otherwise.
+ * Read it in a draw block.
  */
 @Composable
-fun rememberAudioLevel(active: Boolean): State<Float> {
+fun rememberAudioLevel(active: Boolean, stepMillis: Long = 0L): State<Float> {
     val level = remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(active) {
+    LaunchedEffect(active, stepMillis) {
         if (!active) return@LaunchedEffect
         var last = withFrameNanos { it }
-        while (true) {
-            withFrameNanos { now ->
-                val target = AudioMeter.Shared.levelAt(AudioMeter.nowMs() - AudioMeter.DELAY_MS)
-                level.floatValue = AudioMeter.follow(level.floatValue, target, (now - last) / 1_000_000_000f)
-                last = now
-            }
+        steppedFrames(stepMillis) { now ->
+            val target = AudioMeter.Shared.levelAt(AudioMeter.nowMs() - AudioMeter.DELAY_MS)
+            level.floatValue = AudioMeter.follow(level.floatValue, target, (now - last) / 1_000_000_000f)
+            last = now
         }
     }
     return level

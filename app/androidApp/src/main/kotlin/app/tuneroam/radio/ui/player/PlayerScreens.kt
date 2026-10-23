@@ -86,6 +86,7 @@ import app.tuneroam.radio.ui.fx.audioScale
 import app.tuneroam.radio.ui.fx.drawSignalTrace
 import app.tuneroam.radio.ui.fx.rememberAudioLevel
 import app.tuneroam.radio.ui.fx.rememberStationColors
+import app.tuneroam.radio.ui.theme.Motion
 import app.tuneroam.radio.ui.theme.Signal
 import app.tuneroam.radio.ui.theme.animationClock
 import app.tuneroam.radio.ui.theme.popOnChange
@@ -132,13 +133,17 @@ fun MiniPlayerBar(
     val playing = playback.phase == PlaybackPhase.PLAYING
     val tracePath = remember { Path() }
     val reduced = rememberReducedMotion()
-    val time = animationClock(running = !reduced && (playing || playback.phase == PlaybackPhase.CONNECTING))
+    // Steps rather than runs every frame: this bar sits on every browse screen while a station plays.
+    val time = animationClock(
+        running = !reduced && (playing || playback.phase == PlaybackPhase.CONNECTING),
+        stepMillis = Motion.AMBIENT_STEP_MS,
+    )
     val noise by animateFloatAsState(
         targetValue = if (playback.phase == PlaybackPhase.CONNECTING) 0.9f else 0f,
         animationSpec = tween(500),
         label = "mini-noise",
     )
-    val audioLevel = rememberAudioLevel(active = playing && !reduced)
+    val audioLevel = rememberAudioLevel(active = playing && !reduced, stepMillis = Motion.AMBIENT_STEP_MS)
     val audioWeight by animateFloatAsState(if (playing && !reduced) 1f else 0f, tween(500), label = "mini-audio")
     val shape = RoundedCornerShape(22.dp)
     Row(
@@ -181,6 +186,7 @@ fun MiniPlayerBar(
                     playing = playing,
                     color = primary.value,
                     modifier = Modifier.size(width = 14.dp, height = 12.dp),
+                    stepMillis = Motion.AMBIENT_STEP_MS,
                 )
                 Text(
                     text = station.name,
