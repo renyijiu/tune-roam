@@ -132,7 +132,10 @@ fun RoamScreen(
         }
         seeking = false
     }
-    LaunchedEffect(state.loading) {
+    // Keyed on the station too: with a station probed ahead, loading can go on and off
+    // between two frames, and an effect keyed on loading alone would never see it and
+    // leave the globe spinning out its timeout over a station that is already on.
+    LaunchedEffect(state.station?.stationUuid, state.loading) {
         if (!state.loading) seeking = false
     }
     // Next, previous, a shuffle, or a list tap elsewhere flies the globe to the new country.
