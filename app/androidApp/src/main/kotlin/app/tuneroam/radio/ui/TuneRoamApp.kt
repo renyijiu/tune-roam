@@ -131,7 +131,12 @@ fun TuneRoamApp(
                             exit = slideOutVertically(tween(220)) { it } + fadeOut(tween(160)),
                         ) {
                             CompositionLocalProvider(LocalArtworkVisibility provides this) {
-                                MiniPlayerBar(onOpen = { navController.navigate(Routes.PLAYER) }, viewModel = player)
+                                // Roam already has "random" of its own, so next stays in the country.
+                                MiniPlayerBar(
+                                    onOpen = { navController.navigate(Routes.PLAYER) },
+                                    viewModel = player,
+                                    onNext = if (route == Routes.ROAM) player::nextInCountry else player::next,
+                                )
                             }
                         }
                         // Slides away rather than vanishing, so the screen above doesn't jump.
