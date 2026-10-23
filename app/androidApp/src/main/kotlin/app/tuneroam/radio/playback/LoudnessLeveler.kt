@@ -25,9 +25,12 @@ import kotlin.math.sqrt
  * 16-bit PCM only, which is what ExoPlayer decodes radio to by default; any other
  * format passes through untouched. [enabled] can change while playing: the gain then
  * glides back to unity instead of jumping.
+ *
+ * Each chunk's level, relative to the running estimate and measured before leveling, also
+ * goes to [meter] for the visuals.
  */
 @OptIn(UnstableApi::class)
-class LoudnessLeveler : BaseAudioProcessor() {
+class LoudnessLeveler(private val meter: AudioMeter? = null) : BaseAudioProcessor() {
     @Volatile
     var enabled: Boolean = true
 
@@ -48,6 +51,8 @@ class LoudnessLeveler : BaseAudioProcessor() {
         val frameBytes = 2 * channels
         val chunkBytes = max(1, sampleRate * CHUNK_MS / 1000) * frameBytes
         val output = replaceOutputBuffer(limit - position)
+        val first = position
+        val now = if (meter != null) AudioMeter.nowMs() else 0L
         while (position < limit) {
             val end = min(limit, position + chunkBytes)
             val frames = (end - position) / frameBytes
@@ -64,6 +69,11 @@ class LoudnessLeveler : BaseAudioProcessor() {
             val seconds = frames.toDouble() / sampleRate
             val meanSquare = sumSquares / (frames * channels) / FULL_SCALE_SQUARED
             val next = nextGain(meanSquare, peak / FULL_SCALE, seconds)
+            if (meter != null) {
+                val relative = if (level > 0.0 && meanSquare > GATE_MEAN_SQUARE) sqrt(meanSquare / level).toFloat() else 0f
+                // Chunks later in this buffer play later; spread them out instead of stamping all at once.
+                meter.publish(relative, now + (position - first) / frameBytes * 1000L / sampleRate)
+            }
             // Never ramp down through a peak that would clip; start this chunk at the safe gain.
             val start = if (next < gain && peak > 0 && gain * peak / FULL_SCALE > CEILING) next else gain
             index = position

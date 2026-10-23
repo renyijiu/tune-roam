@@ -7,11 +7,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -28,6 +31,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.tuneroam.radio.playback.AudioMeter
 import app.tuneroam.radio.ui.theme.Signal
 import app.tuneroam.radio.ui.theme.animationClock
 import app.tuneroam.radio.ui.theme.rememberReducedMotion
@@ -126,8 +130,39 @@ fun EqualizerBars(playing: Boolean, modifier: Modifier = Modifier, color: Color 
 }
 
 /**
+ * The playing audio's level, smoothed for drawing: jumps up with a beat and settles back.
+ * Updates every frame while [active] and holds still otherwise. Read it in a draw block.
+ */
+@Composable
+fun rememberAudioLevel(active: Boolean): State<Float> {
+    val level = remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(active) {
+        if (!active) return@LaunchedEffect
+        var last = withFrameNanos { it }
+        while (true) {
+            withFrameNanos { now ->
+                val target = AudioMeter.Shared.levelAt(AudioMeter.nowMs() - AudioMeter.DELAY_MS)
+                level.floatValue = AudioMeter.follow(level.floatValue, target, (now - last) / 1_000_000_000f)
+                last = now
+            }
+        }
+    }
+    return level
+}
+
+/**
+ * How tall the carrier draws for an audio [level], blended in by [weight] (0 leaves the
+ * carrier as it always was). Silence leaves a quiet, nearly flat line.
+ */
+fun audioScale(level: Float, weight: Float): Float {
+    val scale = (0.12f + 0.8f * level).coerceAtMost(1.4f)
+    return 1f + (scale - 1f) * weight
+}
+
+/**
  * An oscilloscope trace across [width] centered on [center]. [noise] 1 is pure static,
- * 0 a clean carrier wave: the dial's tuning needle drawn as a signal.
+ * 0 a clean carrier wave: the dial's tuning needle drawn as a signal. [audio] scales the
+ * carrier, so it can follow what is playing; static is left as is.
  */
 fun DrawScope.drawSignalTrace(
     center: Offset,
@@ -137,6 +172,7 @@ fun DrawScope.drawSignalTrace(
     noise: Float,
     locked: Color,
     static: Color,
+    audio: Float = 1f,
 ) {
     val points = 84
     val frame = floor(time * 28f)
@@ -146,7 +182,7 @@ fun DrawScope.drawSignalTrace(
         val envelope = (1f - u * u).pow(1.5f)
         val carrier = sin(u * PI.toFloat() * 3.5f - time * 5f) * (0.42f + 0.18f * sin(time * 1.3f))
         val hiss = (hash(i, frame) * 2f - 1f) * (0.6f + 0.4f * hash(i + 97, frame))
-        val y = (carrier * (1f - noise) + hiss * noise) * envelope * amplitude
+        val y = (carrier * audio * (1f - noise) + hiss * noise) * envelope * amplitude
         val x = center.x + u * width / 2f
         if (i == 0) path.moveTo(x, center.y + y) else path.lineTo(x, center.y + y)
     }

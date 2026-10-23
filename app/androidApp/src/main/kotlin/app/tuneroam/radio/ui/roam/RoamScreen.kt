@@ -80,7 +80,9 @@ import app.tuneroam.radio.ui.components.SettingsButton
 import app.tuneroam.radio.ui.fx.DecodeText
 import app.tuneroam.radio.ui.fx.GlobeCamera
 import app.tuneroam.radio.ui.fx.GlobePainter
+import app.tuneroam.radio.ui.fx.audioScale
 import app.tuneroam.radio.ui.fx.drawSignalTrace
+import app.tuneroam.radio.ui.fx.rememberAudioLevel
 import app.tuneroam.radio.ui.theme.Amber
 import app.tuneroam.radio.ui.theme.Motion
 import app.tuneroam.radio.ui.theme.Signal
@@ -173,6 +175,8 @@ fun RoamScreen(
     val broadcast by animateFloatAsState(if (onAir) 1f else 0f, tween(900), label = "broadcast")
     val pullBack by animateFloatAsState(if (seeking) 0.8f else 1f, Motion.Gentle, label = "pull-back")
     val time = animationClock(running = !reduced)
+    val audioLevel = rememberAudioLevel(active = onAir && !reduced)
+    val audioWeight = if (reduced) 0f else broadcast
     // Off a stop is static; centered on one the carrier comes through clean.
     val noise = {
         val detune = abs(rotation.value - (rotation.value / STEP).roundToInt() * STEP) / (STEP / 2f)
@@ -282,6 +286,7 @@ fun RoamScreen(
                     noise = noise(),
                     locked = Signal,
                     static = Color.White.copy(alpha = 0.7f),
+                    audio = audioScale(audioLevel.value, audioWeight),
                 )
             }
             NeighborLabel(

@@ -80,7 +80,9 @@ import app.tuneroam.radio.ui.fx.DecodeText
 import app.tuneroam.radio.ui.fx.EqualizerBars
 import app.tuneroam.radio.ui.fx.PlayPauseGlyph
 import app.tuneroam.radio.ui.fx.SignalOrb
+import app.tuneroam.radio.ui.fx.audioScale
 import app.tuneroam.radio.ui.fx.drawSignalTrace
+import app.tuneroam.radio.ui.fx.rememberAudioLevel
 import app.tuneroam.radio.ui.fx.rememberStationColors
 import app.tuneroam.radio.ui.theme.Signal
 import app.tuneroam.radio.ui.theme.animationClock
@@ -126,6 +128,8 @@ fun MiniPlayerBar(
         animationSpec = tween(500),
         label = "mini-noise",
     )
+    val audioLevel = rememberAudioLevel(active = playing && !reduced)
+    val audioWeight by animateFloatAsState(if (playing && !reduced) 1f else 0f, tween(500), label = "mini-audio")
     val shape = RoundedCornerShape(22.dp)
     Row(
         modifier = Modifier
@@ -149,6 +153,7 @@ fun MiniPlayerBar(
                     noise = noise,
                     locked = primary.value.copy(alpha = if (playing) 0.7f else 0.25f),
                     static = Color.White.copy(alpha = 0.5f),
+                    audio = audioScale(audioLevel.value, audioWeight),
                 )
             }
             .padding(horizontal = 10.dp, vertical = 8.dp),
