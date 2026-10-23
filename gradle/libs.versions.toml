@@ -1,7 +1,7 @@
 [versions]
 agp = "9.4.1"
 kotlin = "2.4.21"
-composeBom = "2025.12.01"
+composeBom = "2026.09.00"
 media3 = "1.8.1"
 ktor = "3.2.3"
 serialization = "1.11.0"
@@ -10,10 +10,10 @@ sqldelight = "2.2.1"
 koin = "4.0.4"
 lifecycle = "2.8.7"
 activity = "1.10.1"
-navigation = "2.8.9"
+navigation = "2.10.2"
 coil = "2.7.0"
-work = "2.10.5"
-core = "1.15.0"
+work = "2.12.0"
+core = "1.19.1"
 
 [libraries]
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
