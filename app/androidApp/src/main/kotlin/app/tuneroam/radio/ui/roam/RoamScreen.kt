@@ -14,6 +14,9 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -61,6 +65,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -184,6 +189,12 @@ fun RoamScreen(
     }
     val name = { i: Int -> WorldDial.stops[i].let { if (chinese) it.nameZh else it.shortName } }
     val count = WorldDial.stops.size
+    // A neighbor's name turns the globe one stop, the same as a short swipe.
+    val tuneTo = { target: Int ->
+        seeking = false
+        haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+        viewModel.onDialSettled(target)
+    }
 
     Column(
         modifier = Modifier
@@ -249,14 +260,11 @@ fun RoamScreen(
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
+            NeighborLabel(
                 text = "‹ " + name((index - 1 + count) % count),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.width(88.dp),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                onClick = { tuneTo((index - 1 + count) % count) },
             )
             Canvas(
                 modifier = Modifier
@@ -273,14 +281,9 @@ fun RoamScreen(
                     static = Color.White.copy(alpha = 0.7f),
                 )
             }
-            Text(
+            NeighborLabel(
                 text = name((index + 1) % count) + " ›",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-                textAlign = TextAlign.End,
-                modifier = Modifier.width(88.dp),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                onClick = { tuneTo((index + 1) % count) },
             )
         }
         StatusChip(status, time, Modifier.padding(top = 6.dp))
@@ -353,6 +356,27 @@ fun RoamScreen(
             }
         }
     }
+}
+
+@Composable
+private fun NeighborLabel(text: String, onClick: () -> Unit) {
+    // A faint pill in the signal color, so the neighbors read as buttons, not captions.
+    val shape = RoundedCornerShape(50)
+    Text(
+        text = text,
+        color = MaterialTheme.colorScheme.onSurface,
+        style = MaterialTheme.typography.labelMedium,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .width(108.dp)
+            .clip(shape)
+            .background(Signal.copy(alpha = 0.08f))
+            .border(1.dp, Signal.copy(alpha = 0.3f), shape)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 @Composable

@@ -52,7 +52,7 @@
     <string name="using_original_url">Playing the station\'s original address.</string>
     <string name="tab_roam">Roam</string>
     <string name="roam_title">Roam</string>
-    <string name="roam_hint">Spin the globe. When it stops, a station from that country starts.</string>
+    <string name="roam_hint">Spin the globe or tap a neighbor. When it stops, a station from that country starts.</string>
     <string name="roam_land">Play this station</string>
     <string name="roam_shuffle">Random station</string>
     <string name="roam_empty">No playable station for this country in the saved catalog.</string>

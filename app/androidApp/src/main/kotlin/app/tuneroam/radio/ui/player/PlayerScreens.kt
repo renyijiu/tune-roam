@@ -113,6 +113,7 @@ fun PlayerBackdrop(snapshot: PlaybackSnapshot, modifier: Modifier = Modifier) {
 fun MiniPlayerBar(
     onOpen: () -> Unit,
     viewModel: PlayerViewModel = koinViewModel(),
+    onNext: () -> Unit = viewModel::next,
 ) {
     val playback by viewModel.playback.collectAsStateWithLifecycle()
     val station = playback.station ?: return
@@ -181,7 +182,7 @@ fun MiniPlayerBar(
             )
         }
         PlayButton(playing = playing, size = 44, onClick = viewModel::togglePlay)
-        IconButton(onClick = viewModel::next) {
+        IconButton(onClick = onNext) {
             Icon(Icons.Filled.SkipNext, contentDescription = stringResource(R.string.next_station))
         }
     }

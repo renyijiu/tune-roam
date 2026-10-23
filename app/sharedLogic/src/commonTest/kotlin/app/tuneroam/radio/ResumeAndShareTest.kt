@@ -105,13 +105,45 @@ class ResumeAndShareTest {
         assertNull(catalog.lookUp("missing", favorites))
     }
 
+    @Test
+    fun nextInCountryWalksTheCountryListAndWrapsRound() = runTest {
+        val a = testStation("a", country = "Japan")
+        val b = testStation("b", country = "Japan")
+        val c = testStation("c", country = "Japan")
+        val coordinator = PlaybackCoordinator()
+        val commands = RecordingCommands()
+        val player = player(coordinator, commands, catalog = FakeCatalog(inCountry = listOf(listOf(a, b, c))))
+
+        coordinator.begin(a)
+        player.nextInCountry()
+        coordinator.begin(c)
+        player.nextInCountry()
+        assertEquals(listOf("b", "a"), commands.played.map { it.stationUuid })
+        assertEquals(0, commands.nexts)
+    }
+
+    @Test
+    fun nextInCountryFallsBackToRandomWithNothingElseThere() = runTest {
+        val only = testStation("only", country = "Japan")
+        val coordinator = PlaybackCoordinator()
+        val commands = RecordingCommands()
+        val player = player(coordinator, commands, catalog = FakeCatalog(inCountry = listOf(listOf(only))))
+
+        coordinator.begin(only)
+        player.nextInCountry()
+        coordinator.begin(testStation("nowhere"))
+        player.nextInCountry()
+        assertTrue(commands.played.isEmpty())
+        assertEquals(2, commands.nexts)
+    }
+
     private fun player(
         coordinator: PlaybackCoordinator,
         commands: RecordingCommands,
         history: FakeHistory = FakeHistory(),
         favorites: FakeFavorites = FakeFavorites(),
+        catalog: FakeCatalog = FakeCatalog(),
     ): PlayerViewModel {
-        val catalog = FakeCatalog()
         val reach = FakeReachability()
         val connectivity = FakeConnectivity(emptySet())
         return PlayerViewModel(

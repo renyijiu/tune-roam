@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.tuneroam.radio.domain.playback.PlaybackCommands
 import app.tuneroam.radio.domain.model.StationLink
+import app.tuneroam.radio.domain.model.valueOrEmpty
 import app.tuneroam.radio.domain.playback.PlaybackCoordinator
 import app.tuneroam.radio.domain.playback.PlaybackPhase
 import app.tuneroam.radio.domain.playback.PlaybackSnapshot
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -60,6 +62,7 @@ class PlayerViewModel(
 
     private var similarJob: Job? = null
     private var linkJob: Job? = null
+    private var countryJob: Job? = null
 
     init {
         // Cold start: show the last station that played, ready to resume with one tap.
@@ -97,6 +100,23 @@ class PlayerViewModel(
     fun shareText(): String? = coordinator.snapshot.value.station?.let(StationLink::shareText)
 
     fun next() = commands.next()
+
+    /**
+     * Next on the roam page: the station after this one in its own country's list,
+     * wrapping round. The random [next] covers a country with nothing else to play.
+     */
+    fun nextInCountry() {
+        val station = coordinator.snapshot.value.station
+        val country = station?.country?.takeIf { it.isNotBlank() } ?: return next()
+        if (countryJob?.isActive == true) return
+        countryJob = viewModelScope.launch {
+            val playable = catalog.stationsInCountry(country, hideBroken = true).first()
+                .valueOrEmpty().filter { it.hasStream }
+            val at = playable.indexOfFirst { it.stationUuid == station.stationUuid }
+            val pick = playable.getOrNull((at + 1) % playable.size.coerceAtLeast(1))
+            if (pick == null || pick.stationUuid == station.stationUuid) commands.next() else commands.play(pick)
+        }
+    }
 
     fun previous() = commands.previous()
 
