@@ -1,6 +1,6 @@
 # 随声 / Tune Roam
 
-Android 上的全球网络电台。共享的 Kotlin 核心不依赖 Android，以后可以加一个 SwiftUI 的 iOS 壳。还没有正式发布。
+Android 上的全球网络电台。共享的 Kotlin 核心不依赖 Android，以后可以加一个 SwiftUI 的 iOS 壳。安装包在 [Releases](https://github.com/renyijiu/tune-roam/releases) 页面下载。
 
 数据来自 [Radio Browser](https://api.radio-browser.info/) 的公开 API。灵感来自网页电台 [RoamDial](https://www.v2ex.com/t/1249321)：按世界各地浏览电台。随声不是 RoamDial，名字、包名和代码都与它无关。
 
@@ -110,7 +110,7 @@ scripts/             随包电台快照的生成脚本
 
 - SQLDelight 的表都在 `Catalog.sq`：收藏、目录缓存、国家缓存、连通记录、最近播放（最多 40 条）、镜像记忆、曲目收藏、设置。
 - 设置（`AppSettings`）作为一行 JSON 存在 `setting` 表里，加字段只要给默认值；这一行解析不了时按默认设置处理。
-- **还没发布，所以没有数据库迁移**：表结构直接改 `Catalog.sq`，开发机上清数据或重装即可。第一次发布之后，每次改表都要加 `.sqm` 迁移和对应测试。
+- **改表要加迁移**：v0.1.0 起已经有用户装在手机上，覆盖升级不会清数据。现在的表结构是 schema 版本 1（还没有 `.sqm` 文件）。以后每次改表，`Catalog.sq` 改成新结构，同时加一个从旧版本升级的迁移：第一次是 `1.sqm`（1 → 2），之后依次是 `2.sqm`、`3.sqm`……每个迁移都要有测试，确认旧库升级后数据还在。不能只改 `Catalog.sq`，否则老用户手机上的旧表不会变，用到新表或新列时就会出错。
 
 ### 崩溃日志
 
