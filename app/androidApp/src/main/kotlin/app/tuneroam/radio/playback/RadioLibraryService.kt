@@ -80,7 +80,7 @@ class RadioLibraryService : MediaLibraryService() {
     private val sleepTimer: SleepTimer by inject()
     private val deck: RoamDeck by inject()
     private val settings: SettingsRepository by inject()
-    private val leveler = LoudnessLeveler()
+    private val leveler = LoudnessLeveler(AudioMeter.Shared)
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var player: ExoPlayer

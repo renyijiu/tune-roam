@@ -58,6 +58,21 @@ class LoudnessLevelerTest {
         assertEquals(AudioProcessor.AudioFormat.NOT_SET, leveler.configure(format))
     }
 
+    @Test
+    fun publishesLevelsRelativeToTheStationForTheMeter() {
+        val meter = AudioMeter()
+        val leveler = configured(meter)
+        run(leveler, sine(seconds = 4, amplitude = 0.03))
+        val steady = meter.levelAt(AudioMeter.nowMs() + 50)
+        // A quiet station still reads about 1 once the running estimate settled on it.
+        assertTrue(steady in 0.8f..1.2f, "steady $steady")
+        run(leveler, sine(seconds = 0, amplitude = 0.12, frames = 2_205))
+        val loud = meter.levelAt(AudioMeter.nowMs() + 50)
+        assertTrue(loud > 2f, "loud $loud")
+        run(leveler, ShortArray(2_205 * channels))
+        assertEquals(0f, meter.levelAt(AudioMeter.nowMs() + 50))
+    }
+
     private data class Level(val rmsDb: Double, val peak: Double)
 
     /** Level of the last two seconds, after the leveler settled. */
@@ -69,7 +84,7 @@ class LoudnessLevelerTest {
         return Level(20 * log10(rms), peak)
     }
 
-    private fun configured(): LoudnessLeveler = LoudnessLeveler().apply {
+    private fun configured(meter: AudioMeter? = null): LoudnessLeveler = LoudnessLeveler(meter).apply {
         configure(AudioProcessor.AudioFormat(rate, channels, C.ENCODING_PCM_16BIT))
         flush()
     }
