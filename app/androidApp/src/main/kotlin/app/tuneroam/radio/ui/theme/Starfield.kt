@@ -1,32 +1,36 @@
 package app.tuneroam.radio.ui.theme
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import kotlinx.coroutines.delay
 
+/**
+ * Stars drifting down behind the browse screens. They move a few pixels a second, less than
+ * one per frame, so the drift steps at about 20 fps: it looks the same and spares the whole
+ * screen redrawing every frame while nothing else moves.
+ */
 @Composable
 fun Starfield(modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "starfield")
-    val drift by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 32_000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "drift",
-    )
+    val reduced = rememberReducedMotion()
+    val loop = remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(reduced) {
+        if (reduced) return@LaunchedEffect
+        val start = withFrameMillis { it }
+        while (true) {
+            delay(STEP_MS)
+            withFrameMillis { now -> loop.floatValue = (now - start) % LOOP_MS / LOOP_MS.toFloat() }
+        }
+    }
     Canvas(modifier.fillMaxSize()) {
+        val drift = loop.floatValue
         repeat(STAR_COUNT) { index ->
             val x = ((index * 97 % 1000) / 1000f) * size.width
             val baseY = (index * 53 % 1000) / 1000f
@@ -40,3 +44,7 @@ fun Starfield(modifier: Modifier = Modifier) {
 }
 
 private const val STAR_COUNT = 78
+private const val LOOP_MS = 32_000L
+
+/** Plus the wait for the next frame, about 50 ms between steps. */
+private const val STEP_MS = 40L

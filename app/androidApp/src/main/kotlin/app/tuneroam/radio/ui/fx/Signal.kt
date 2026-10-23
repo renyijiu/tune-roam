@@ -165,6 +165,7 @@ fun audioScale(level: Float, weight: Float): Float {
  * carrier, so it can follow what is playing; static is left as is.
  */
 fun DrawScope.drawSignalTrace(
+    path: Path,
     center: Offset,
     width: Float,
     amplitude: Float,
@@ -176,7 +177,7 @@ fun DrawScope.drawSignalTrace(
 ) {
     val points = 84
     val frame = floor(time * 28f)
-    val path = Path()
+    path.reset()
     for (i in 0..points) {
         val u = i.toFloat() / points * 2f - 1f
         val envelope = (1f - u * u).pow(1.5f)
