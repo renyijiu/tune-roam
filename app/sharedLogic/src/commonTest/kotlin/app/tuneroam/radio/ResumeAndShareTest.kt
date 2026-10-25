@@ -62,6 +62,24 @@ class ResumeAndShareTest {
     }
 
     @Test
+    fun closingThePlayerKeepsTheStationAndPlayOpensItAgain() = runTest {
+        val coordinator = PlaybackCoordinator()
+        val commands = RecordingCommands()
+        val player = player(coordinator, commands)
+        coordinator.begin(testStation("on"))
+        coordinator.onPlaying()
+        coordinator.onPaused()
+
+        coordinator.close()
+        assertEquals("on", coordinator.snapshot.value.station?.stationUuid)
+        assertEquals(PlaybackPhase.IDLE, coordinator.snapshot.value.phase)
+
+        player.togglePlay()
+        assertEquals(listOf("on"), commands.played.map { it.stationUuid })
+        assertEquals(0, commands.toggles)
+    }
+
+    @Test
     fun coldStartRestoresTheLastStationAndPlayOpensIt() = runTest {
         val coordinator = PlaybackCoordinator()
         val commands = RecordingCommands()

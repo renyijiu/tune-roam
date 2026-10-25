@@ -24,7 +24,8 @@ import org.koin.dsl.module
  * unless it is registered as one.
  */
 val androidAppModule = module {
-    single<PlaybackCommands> { MediaSessionCommands(androidContext()) }
+    single { MediaSessionCommands(androidContext()) }
+    single<PlaybackCommands> { get<MediaSessionCommands>() }
     single { SnapshotScheduler(androidContext(), get()) }
     viewModel { HomeViewModel(get(), get(), get(), get(), get()) }
     viewModel { RoamViewModel(get(), get(), get(), get()) }

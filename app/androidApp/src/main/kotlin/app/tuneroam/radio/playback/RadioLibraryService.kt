@@ -168,6 +168,10 @@ class RadioLibraryService : MediaLibraryService() {
      * before Media3's own notification replaces this one.
      */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_STOP) {
+            pauseAllPlayersAndStopSelf()
+            return START_NOT_STICKY
+        }
         promoteToForeground()
         return super.onStartCommand(intent, flags, startId)
     }
@@ -213,6 +217,7 @@ class RadioLibraryService : MediaLibraryService() {
             player.removeListener(engineListener)
             player.release()
         }
+        coordinator.close()
         super.onDestroy()
     }
 
@@ -505,16 +510,19 @@ class RadioLibraryService : MediaLibraryService() {
         }
     }
 
-    private companion object {
-        const val CHANNEL_ID = "tuneroam_playback"
+    companion object {
+        /** Pauses and lets the service stop, notification and all: a TV leaving the app with Back. */
+        const val ACTION_STOP = "app.tuneroam.radio.action.STOP"
+
+        private const val CHANNEL_ID = "tuneroam_playback"
 
         /** Same id Media3's DefaultMediaNotificationProvider uses, so the real player notification replaces this one. */
-        const val MEDIA_NOTIFICATION_ID = 1001
-        const val MAX_AUTO_HOPS = 3
-        const val WATCHDOG_TICK_MS = 1_000L
+        private const val MEDIA_NOTIFICATION_ID = 1001
+        private const val MAX_AUTO_HOPS = 3
+        private const val WATCHDOG_TICK_MS = 1_000L
 
         /** Longer than this, a paused stream is reopened rather than resumed from its buffer. */
-        const val LIVE_RESUME_AFTER_MS = 30_000L
+        private const val LIVE_RESUME_AFTER_MS = 30_000L
     }
 }
 
