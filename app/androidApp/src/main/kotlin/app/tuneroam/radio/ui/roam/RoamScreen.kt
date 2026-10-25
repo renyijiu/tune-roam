@@ -444,8 +444,12 @@ fun RoamScreen(
                     .fillMaxHeight(),
                 contentAlignment = Alignment.Center,
             ) {
+                // The scroll clips at its edges; the padding leaves room for the focus ring
+                // around the buttons at the bottom.
                 Column(
-                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     header()
