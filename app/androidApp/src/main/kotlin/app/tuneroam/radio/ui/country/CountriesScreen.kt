@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -24,6 +26,8 @@ import app.tuneroam.radio.R
 import app.tuneroam.radio.presentation.CountriesViewModel
 import app.tuneroam.radio.ui.components.EmptyNote
 import app.tuneroam.radio.ui.components.message
+import app.tuneroam.radio.ui.theme.focusRing
+import app.tuneroam.radio.ui.theme.remoteTextEntry
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -64,7 +68,8 @@ fun CountriesScreen(
                 onValueChange = viewModel::onQueryChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                    .padding(horizontal = 20.dp, vertical = 4.dp)
+                    .remoteTextEntry(OutlinedTextFieldDefaults.shape),
                 singleLine = true,
                 placeholder = { Text(stringResource(R.string.field_country)) },
             )
@@ -95,6 +100,7 @@ fun CountriesScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .focusRing(RoundedCornerShape(12.dp), outset = (-2).dp)
                     .clickable { onCountry(country.name) }
                     .padding(horizontal = 20.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,

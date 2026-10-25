@@ -4,7 +4,7 @@ Android 上的全球网络电台。共享的 Kotlin 核心不依赖 Android，�
 
 数据来自 [Radio Browser](https://api.radio-browser.info/) 的公开 API。灵感来自网页电台 [RoamDial](https://www.v2ex.com/t/1249321)：按世界各地浏览电台。随声不是 RoamDial，名字、包名和代码都与它无关。
 
-> **English.** Tune Roam is an Android internet radio app built on the public [Radio Browser](https://www.radio-browser.info/) directory. Spin a dotted globe to roam between countries, search by name, tag or country, and skip to the next station with streams probed in advance. It plays in the background through Media3 (notification, lock screen, headset, Bluetooth and car controls), levels loudness across stations, and keeps an offline station list for when the directory is unreachable. The core is Kotlin Multiplatform with no Android dependency, so an iOS shell can be added later. Build with JDK 21 and the Android SDK: `./gradlew :app:androidApp:assembleDebug`. The rest of this README is in Chinese. Licensed under [MIT](LICENSE).
+> **English.** Tune Roam is an Android internet radio app built on the public [Radio Browser](https://www.radio-browser.info/) directory. Spin a dotted globe to roam between countries, search by name, tag or country, and skip to the next station with streams probed in advance. It plays in the background through Media3 (notification, lock screen, headset, Bluetooth and car controls), runs on Android TVs and projectors with a remote, levels loudness across stations, and keeps an offline station list for when the directory is unreachable. The core is Kotlin Multiplatform with no Android dependency, so an iOS shell can be added later. Build with JDK 21 and the Android SDK: `./gradlew :app:androidApp:assembleDebug`. The rest of this README is in Chinese. Licensed under [MIT](LICENSE).
 
 <p>
   <img src="docs/screenshots/roam.jpg" width="240" alt="漫游 / Roam">
@@ -27,6 +27,7 @@ Android 上的全球网络电台。共享的 Kotlin 核心不依赖 Android，�
 - **设置**（漫游页和搜索页右上角的齿轮）：下一站筛选（码率下限、语言、只听 / 不要哪些类型）、音量统一（默认打开）、离线电台清单（自动更新：关闭 / 每天 / 每周（默认）/ 每月，可只在 Wi-Fi 下更新，显示上次更新时间，可立即更新）、崩溃日志（分享或清除）、版本号。
 - **后台播放**：Media3 `MediaLibraryService`，通知、锁屏、耳机键、蓝牙 / 车机的 AVRCP 信息。来电或耳机拔出时暂停。
 - **浏览树**：收藏、热门、按国家，供车机和系统媒体控件使用。
+- **电视 / 投影仪**：Android 8.0 起的电视和投影仪（如极米）可以直接装，出现在电视桌面上（带横幅图）。横屏时导航换成左侧竖栏，漫游页和播放页左右分栏。遥控器操作：漫游页一进来就停在地球上，左右键转一站，按住一路转，松开才换台；确定键收听当前台。在各个标签页按返回键先跳到左侧导航栏，再按一次照常返回。输入框要按确定键才弹键盘，路过时不会被键盘困住；收起键盘后上下键离开输入框。睡眠定时的转盘用上下键拨，确定键跳到「开始」。在电视 / 投影仪上按返回键退出会停止播放并关掉后台服务（这类设备没有通知栏和锁屏，退出后没处可停）；按主页键离开时继续播。手机上的后台播放不变。获得焦点的按钮和列表行有一圈信号色描边。手机竖屏的样子不变，横过来也用分栏布局。
 
 ## 目录
 
@@ -212,6 +213,7 @@ App 也会在手机上按同样的规则自己更新这份清单（见「离线�
 - 筛选只作用于下一站和随便一座，不作用于表盘选国家和坏台时的自动换台。
 - 离线清单要在连得上 Radio Browser 时才能更新；一直连不上就继续用上一次的清单。WorkManager 的周期任务由系统安排，实际运行时间会有偏差。
 - 分享链接是自定义 scheme：没装应用的人点开没有反应，有的聊天应用也不识别成链接。换成 https App Link 需要一个应用自己的域名。
+- 电视适配只在模拟器（1080p、无触屏、方向键）上测过，没有在真机投影仪上试过。分享按钮在没有分享目标的电视上只会弹出空的选择框。
 - Android Auto 只声明了 `automotive_app_desc.xml` 并提供浏览树，没有在实车上验证（中国大陆也不可用）。睡眠定时按墙钟倒计时，服务进程被系统杀掉之后不会再响。
 
 ## 许可

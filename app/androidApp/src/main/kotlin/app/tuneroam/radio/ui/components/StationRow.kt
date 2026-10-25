@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Settings
@@ -28,6 +30,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -41,6 +46,7 @@ import app.tuneroam.radio.domain.model.FailureReason
 import app.tuneroam.radio.domain.model.Station
 import app.tuneroam.radio.ui.fx.StationEmblem
 import app.tuneroam.radio.ui.theme.Signal
+import app.tuneroam.radio.ui.theme.remoteRowLabel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 
@@ -52,34 +58,49 @@ fun StationRow(
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val label = remember { FocusRequester() }
     Row(
         modifier = modifier
             .fillMaxWidth()
+            // A remote coming from another row lands on the name, not the heart, so Down
+            // walks the stations; Right from the name reaches the heart.
+            .focusProperties { onEnter = { label.requestFocus() } }
+            .focusGroup()
+            .focusProperties { canFocus = false }
             .clickable(onClick = onPlay)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        StationMark(station = station, modifier = Modifier.size(48.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = station.name,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            val meta = listOfNotNull(
-                station.country.takeIf { it.isNotBlank() },
-                station.technicalLabel().takeIf { it.isNotBlank() },
-            ).joinToString(" · ")
-            if (meta.isNotEmpty()) {
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .focusRequester(label)
+                .remoteRowLabel(RoundedCornerShape(12.dp), onPlay),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            StationMark(station = station, modifier = Modifier.size(48.dp))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = meta,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = station.name,
+                    style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                val meta = listOfNotNull(
+                    station.country.takeIf { it.isNotBlank() },
+                    station.technicalLabel().takeIf { it.isNotBlank() },
+                ).joinToString(" · ")
+                if (meta.isNotEmpty()) {
+                    Text(
+                        text = meta,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
         HealthDot(ok = station.lastCheckOk)

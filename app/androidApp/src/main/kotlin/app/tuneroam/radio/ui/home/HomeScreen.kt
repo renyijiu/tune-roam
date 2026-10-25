@@ -20,7 +20,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,7 +44,9 @@ import app.tuneroam.radio.presentation.HomeViewModel
 import app.tuneroam.radio.ui.components.EmptyNote
 import app.tuneroam.radio.ui.components.SettingsButton
 import app.tuneroam.radio.ui.components.StationRow
+import app.tuneroam.radio.ui.components.SwitchRow
 import app.tuneroam.radio.ui.components.message
+import app.tuneroam.radio.ui.theme.remoteTextEntry
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -81,7 +83,8 @@ fun HomeScreen(
                 onValueChange = viewModel::onQueryChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = 20.dp)
+                    .remoteTextEntry(OutlinedTextFieldDefaults.shape),
                 singleLine = true,
                 placeholder = {
                     Text(
@@ -101,36 +104,20 @@ fun HomeScreen(
             )
         }
         item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 20.dp, end = 20.dp, top = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    text = stringResource(R.string.hide_broken),
-                    modifier = Modifier.weight(1f).padding(end = 12.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Switch(checked = state.hideBroken, onCheckedChange = viewModel::onHideBroken)
-            }
+            SwitchRow(
+                text = stringResource(R.string.hide_broken),
+                checked = state.hideBroken,
+                onCheckedChange = viewModel::onHideBroken,
+                modifier = Modifier.padding(top = 8.dp),
+            )
         }
         item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    text = stringResource(R.string.china_only),
-                    modifier = Modifier.weight(1f).padding(end = 12.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Switch(checked = state.chinaOnly, onCheckedChange = viewModel::onChinaOnly)
-            }
+            SwitchRow(
+                text = stringResource(R.string.china_only),
+                checked = state.chinaOnly,
+                onCheckedChange = viewModel::onChinaOnly,
+                modifier = Modifier.padding(vertical = 4.dp),
+            )
         }
         item {
             TextButton(

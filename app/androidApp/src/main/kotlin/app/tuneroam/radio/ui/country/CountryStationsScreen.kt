@@ -14,7 +14,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -28,6 +27,7 @@ import app.tuneroam.radio.R
 import app.tuneroam.radio.presentation.CountryStationsViewModel
 import app.tuneroam.radio.ui.components.EmptyNote
 import app.tuneroam.radio.ui.components.StationRow
+import app.tuneroam.radio.ui.components.SwitchRow
 import app.tuneroam.radio.ui.components.message
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -59,20 +59,12 @@ fun CountryStationsScreen(
             }
         }
         item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    text = stringResource(R.string.hide_broken),
-                    modifier = Modifier.weight(1f).padding(end = 12.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Switch(checked = state.hideBroken, onCheckedChange = viewModel::onHideBroken)
-            }
+            SwitchRow(
+                text = stringResource(R.string.hide_broken),
+                checked = state.hideBroken,
+                onCheckedChange = viewModel::onHideBroken,
+                modifier = Modifier.padding(vertical = 4.dp),
+            )
         }
         if (state.stale) {
             item {

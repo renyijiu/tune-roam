@@ -130,6 +130,16 @@ class PlaybackCoordinator(
         }
     }
 
+    /**
+     * The shell shut its player down (on Android the playback service went away, as when a
+     * TV leaves the app with Back). The station stays on show, idle, so play opens it again
+     * instead of resuming a player that no longer has it.
+     */
+    fun close() {
+        session = null
+        _snapshot.update { current -> PlaybackSnapshot(station = current.station, phase = PlaybackPhase.IDLE) }
+    }
+
     fun onIcyTitle(title: String?) {
         val cleaned = title?.trim()?.takeIf { it.isNotEmpty() }
         val stationName = _snapshot.value.station?.name

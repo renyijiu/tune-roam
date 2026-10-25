@@ -17,18 +17,23 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -48,6 +53,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -60,6 +69,11 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalConfiguration
@@ -86,9 +100,13 @@ import app.tuneroam.radio.ui.fx.drawSignalTrace
 import app.tuneroam.radio.ui.fx.rememberAudioLevel
 import app.tuneroam.radio.ui.theme.Amber
 import app.tuneroam.radio.ui.theme.Motion
+import app.tuneroam.radio.ui.theme.OkKeys
 import app.tuneroam.radio.ui.theme.Signal
 import app.tuneroam.radio.ui.theme.animationClock
+import app.tuneroam.radio.ui.theme.focusRing
 import app.tuneroam.radio.ui.theme.rememberReducedMotion
+import app.tuneroam.radio.ui.theme.rememberWideLayout
+import app.tuneroam.radio.ui.theme.usingRemote
 import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.abs
@@ -205,12 +223,36 @@ fun RoamScreen(
         viewModel.onDialSettled(target)
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
+    // A remote turns the globe one stop per press and keeps it spinning while an arrow is
+    // held; the station changes only when the key comes up, like letting go after a swipe.
+    var keyTarget by remember { mutableStateOf<Float?>(null) }
+    val stepGlobe: (Boolean) -> Unit = { forward ->
+        seeking = false
+        dragging = true
+        val from = keyTarget ?: ((rotation.value / STEP).roundToInt() * STEP)
+        val target = if (forward) from - STEP else from + STEP
+        keyTarget = target
+        scope.launch { rotation.animateTo(target, Motion.Detent) }
+    }
+    val settleGlobe: () -> Unit = {
+        val target = keyTarget
+        if (target != null) {
+            keyTarget = null
+            dragging = false
+            haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+            viewModel.onDialSettled(WorldDial.dialIndex(target))
+        }
+    }
+    val remote = usingRemote()
+    val wide = rememberWideLayout()
+    val globeFocus = remember { FocusRequester() }
+    val landFocus = remember { FocusRequester() }
+    // On a TV the remote starts on the globe, so the arrows turn it straight away.
+    LaunchedEffect(Unit) {
+        if (remote) globeFocus.requestFocus()
+    }
+
+    val header: @Composable () -> Unit = {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = stringResource(R.string.roam_title),
@@ -225,13 +267,15 @@ fun RoamScreen(
             SettingsButton(onOpenSettings)
         }
         Text(
-            text = stringResource(R.string.roam_hint),
+            text = stringResource(if (remote) R.string.roam_hint_remote else R.string.roam_hint),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 2.dp),
         )
+    }
+    val globe: @Composable (Modifier) -> Unit = { modifier ->
         GlobeDial(
             rotation = { rotation.value },
             selected = { index },
@@ -262,10 +306,17 @@ fun RoamScreen(
                     viewModel.onDialSettled(WorldDial.dialIndex(target))
                 }
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
+            onStep = stepGlobe,
+            onStepEnd = settleGlobe,
+            onSelect = viewModel::land,
+            // Left and right turn the globe, so side by side nothing could reach the buttons
+            // beside it; Down goes to them, and from there the rest of the column is in reach.
+            modifier = modifier
+                .focusRequester(globeFocus)
+                .focusProperties { if (wide) down = landFocus },
         )
+    }
+    val controls: @Composable () -> Unit = {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -350,7 +401,10 @@ fun RoamScreen(
         ) {
             Button(
                 onClick = viewModel::land,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .focusRing(RoundedCornerShape(20.dp))
+                    .focusRequester(landFocus),
                 shape = RoundedCornerShape(20.dp),
             ) {
                 Text(stringResource(R.string.roam_land))
@@ -360,11 +414,64 @@ fun RoamScreen(
                     seeking = true
                     viewModel.shuffle()
                 },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .focusRing(RoundedCornerShape(20.dp)),
                 shape = RoundedCornerShape(20.dp),
             ) {
                 Text(stringResource(R.string.roam_shuffle))
             }
+        }
+    }
+
+    if (wide) {
+        // Landscape (a TV, a projector, a phone on its side): the globe takes the left half
+        // at full height, and the readout sits beside it instead of being squeezed below.
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+        ) {
+            globe(
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                contentAlignment = Alignment.Center,
+            ) {
+                // The scroll clips at its edges; the padding leaves room for the focus ring
+                // around the buttons at the bottom.
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    header()
+                    Spacer(Modifier.height(20.dp))
+                    controls()
+                }
+            }
+        }
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            header()
+            globe(
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+            )
+            controls()
         }
     }
 }
@@ -380,6 +487,7 @@ private fun NeighborLabel(text: String, onClick: () -> Unit) {
         textAlign = TextAlign.Center,
         modifier = Modifier
             .width(108.dp)
+            .focusRing(shape)
             .clip(shape)
             .background(Signal.copy(alpha = 0.08f))
             .border(1.dp, Signal.copy(alpha = 0.3f), shape)
@@ -448,6 +556,9 @@ private fun GlobeDial(
     onDragStart: () -> Unit,
     onDrag: (Float) -> Unit,
     onRelease: (velocity: Float) -> Unit,
+    onStep: (forward: Boolean) -> Unit,
+    onStepEnd: () -> Unit,
+    onSelect: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current.density
@@ -455,8 +566,34 @@ private fun GlobeDial(
     val start = rememberUpdatedState(onDragStart)
     val dragBy = rememberUpdatedState(onDrag)
     val release = rememberUpdatedState(onRelease)
+    var focused by remember { mutableStateOf(false) }
+    val focusRing by animateFloatAsState(if (focused) 1f else 0f, tween(220), label = "globe-focus")
     Box(
-        modifier = modifier.pointerInput(Unit) {
+        modifier = modifier
+            .onFocusChanged {
+                focused = it.isFocused
+                // Focus leaving mid-hold never sees the key come up; settle where it is.
+                if (!it.isFocused) onStepEnd()
+            }
+            .onKeyEvent { event ->
+                when (event.key) {
+                    Key.DirectionLeft, Key.DirectionRight -> {
+                        if (event.type == KeyEventType.KeyDown) {
+                            onStep(event.key == Key.DirectionRight)
+                        } else if (event.type == KeyEventType.KeyUp) {
+                            onStepEnd()
+                        }
+                        true
+                    }
+                    in OkKeys -> {
+                        if (event.type == KeyEventType.KeyUp) onSelect()
+                        true
+                    }
+                    else -> false
+                }
+            }
+            .focusable()
+            .pointerInput(Unit) {
             val tracker = VelocityTracker()
             detectHorizontalDragGestures(
                 onDragStart = {
@@ -489,6 +626,13 @@ private fun GlobeDial(
                 broadcast = broadcast(),
                 lock = lock(),
             )
+            if (focusRing > 0f) {
+                drawCircle(
+                    color = Signal.copy(alpha = 0.6f * focusRing),
+                    radius = size.minDimension * GlobePainter.RADIUS * camera.zoom + 12.dp.toPx(),
+                    style = Stroke(width = 2.dp.toPx()),
+                )
+            }
             drawReticle(time.value, noise())
         }
     }

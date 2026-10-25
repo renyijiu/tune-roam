@@ -18,7 +18,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,6 +40,7 @@ import app.tuneroam.radio.domain.model.RoamFilter
 import app.tuneroam.radio.domain.model.SnapshotResult
 import app.tuneroam.radio.presentation.SettingsViewModel
 import app.tuneroam.radio.presentation.SnapshotStatus
+import app.tuneroam.radio.ui.components.SwitchRow
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -120,20 +120,12 @@ fun SettingsScreen(
         }
 
         Section(R.string.settings_playback_heading)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                stringResource(R.string.settings_level_volume),
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f),
-            )
-            Switch(checked = settings.levelVolume, onCheckedChange = viewModel::setLevelVolume)
-        }
+        SwitchRow(
+            text = stringResource(R.string.settings_level_volume),
+            checked = settings.levelVolume,
+            onCheckedChange = viewModel::setLevelVolume,
+            style = MaterialTheme.typography.bodyLarge,
+        )
         Note(stringResource(R.string.settings_level_volume_note))
 
         Section(R.string.settings_snapshot_heading)
@@ -180,24 +172,13 @@ private fun SnapshotSection(viewModel: SettingsViewModel, interval: RefreshInter
             )
         }
     }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            stringResource(R.string.settings_snapshot_wifi),
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f),
-        )
-        Switch(
-            checked = wifiOnly,
-            onCheckedChange = viewModel::setSnapshotWifiOnly,
-            enabled = interval != RefreshInterval.OFF,
-        )
-    }
+    SwitchRow(
+        text = stringResource(R.string.settings_snapshot_wifi),
+        checked = wifiOnly,
+        onCheckedChange = viewModel::setSnapshotWifiOnly,
+        enabled = interval != RefreshInterval.OFF,
+        style = MaterialTheme.typography.bodyLarge,
+    )
     val updating = status == SnapshotStatus.Updating
     TextButton(
         onClick = viewModel::refreshSnapshotNow,

@@ -2,9 +2,13 @@
 
 package app.tuneroam.radio.ui.theme
 
+import androidx.compose.material.ripple.RippleAlpha
+import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RippleConfiguration
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -118,11 +122,26 @@ private val TuneRoamColors = darkColorScheme(
     outline = Color(0xFF2C4254),
 )
 
+/**
+ * Material's focus highlight is a faint 10% wash, lost on a projector across the room;
+ * this one is easy to spot. Focus only lands on buttons from a remote or keyboard, so touch
+ * looks the same as before.
+ */
+private val RemoteFriendlyRipple = RippleConfiguration(
+    rippleAlpha = RippleAlpha(
+        draggedAlpha = 0.16f,
+        focusedAlpha = 0.28f,
+        hoveredAlpha = 0.08f,
+        pressedAlpha = 0.10f,
+    ),
+)
+
 @Composable
 fun TuneRoamTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = TuneRoamColors,
         typography = TuneRoamTypography,
-        content = content,
-    )
+    ) {
+        CompositionLocalProvider(LocalRippleConfiguration provides RemoteFriendlyRipple, content = content)
+    }
 }
