@@ -6,6 +6,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -111,3 +112,23 @@ fun Modifier.remoteTextEntry(shape: Shape): Modifier {
 
 /** The remote's select button, and the keyboard keys that act like it. */
 val OkKeys = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)
+
+/**
+ * For the label part of a row that is tappable as a whole but holds buttons of its own,
+ * like the mini player or a station row with its heart. A remote can't move from a focused
+ * row into buttons inside it, so the row itself takes `focusProperties { canFocus = false }`
+ * before its `clickable`, and its label takes this: the remote stops on the label, OK there
+ * does the row's action, and the buttons beside it are stops of their own. Touch still taps
+ * the whole row.
+ */
+@Composable
+fun Modifier.remoteRowLabel(shape: Shape, onClick: () -> Unit): Modifier {
+    val click by rememberUpdatedState(onClick)
+    return focusRing(shape)
+        .onKeyEvent { event ->
+            if (event.key !in OkKeys) return@onKeyEvent false
+            if (event.type == KeyEventType.KeyUp) click()
+            true
+        }
+        .focusable()
+}

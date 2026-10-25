@@ -54,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -99,6 +100,7 @@ import app.tuneroam.radio.ui.theme.popOnChange
 import app.tuneroam.radio.ui.theme.pressSquish
 import app.tuneroam.radio.ui.theme.rememberReducedMotion
 import app.tuneroam.radio.ui.theme.rememberWideLayout
+import app.tuneroam.radio.ui.theme.remoteRowLabel
 import app.tuneroam.radio.ui.theme.sharedArtwork
 import app.tuneroam.radio.ui.theme.usingRemote
 import java.util.Locale
@@ -158,7 +160,6 @@ fun MiniPlayerBar(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 6.dp)
-            .focusRing(shape)
             .clip(shape)
             .background(
                 Brush.horizontalGradient(
@@ -166,6 +167,7 @@ fun MiniPlayerBar(
                 ),
             )
             .border(1.dp, primary.value.copy(alpha = 0.25f), shape)
+            .focusProperties { canFocus = false }
             .clickable(onClick = onOpen)
             .drawBehind {
                 // A live signal line along the bottom edge: static while connecting, a carrier once on air.
@@ -185,32 +187,40 @@ fun MiniPlayerBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        StationMark(station, Modifier.size(42.dp).sharedArtwork(station.stationUuid))
-        Column(modifier = Modifier.weight(1f)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                EqualizerBars(
-                    playing = playing,
-                    color = primary.value,
-                    modifier = Modifier.size(width = 14.dp, height = 12.dp),
-                    stepMillis = Motion.AMBIENT_STEP_MS,
-                )
-                Text(
-                    text = station.name,
-                    style = MaterialTheme.typography.titleMedium,
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .remoteRowLabel(RoundedCornerShape(14.dp), onOpen),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            StationMark(station, Modifier.size(42.dp).sharedArtwork(station.stationUuid))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    EqualizerBars(
+                        playing = playing,
+                        color = primary.value,
+                        modifier = Modifier.size(width = 14.dp, height = 12.dp),
+                        stepMillis = Motion.AMBIENT_STEP_MS,
+                    )
+                    Text(
+                        text = station.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                DecodeText(
+                    text = playback.icyTitle ?: station.country.ifBlank { stringResource(R.string.now_playing) },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (playback.icyTitle != null) Signal else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            DecodeText(
-                text = playback.icyTitle ?: station.country.ifBlank { stringResource(R.string.now_playing) },
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (playback.icyTitle != null) Signal else MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
         }
         PlayButton(playing = playing, size = 44, onClick = viewModel::togglePlay)
         IconButton(onClick = onNext) {
