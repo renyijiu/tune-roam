@@ -7,7 +7,7 @@ package app.tuneroam.radio.core
  */
 object AppIdentity {
     const val APPLICATION_ID = "app.tuneroam.radio"
-    const val VERSION = "0.3.0"
+    const val VERSION = "0.4.0"
 
     const val USER_AGENT = "TuneRoam/$VERSION ($APPLICATION_ID)"
 }
