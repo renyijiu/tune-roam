@@ -53,7 +53,7 @@
     <string name="tab_roam">Roam</string>
     <string name="roam_title">Roam</string>
     <string name="roam_hint">Spin the globe or tap a neighbor. When it stops, a station from that country starts.</string>
-    <string name="roam_hint_remote">Press left or right to turn the globe, then OK to listen. When it stops, a station from that country starts.</string>
+    <string name="roam_hint_remote">Press left or right to turn the globe, then OK to listen; press down for the buttons. When it stops, a station from that country starts.</string>
     <string name="roam_land">Play this station</string>
     <string name="roam_shuffle">Random station</string>
     <string name="roam_empty">No playable station for this country in the saved catalog.</string>

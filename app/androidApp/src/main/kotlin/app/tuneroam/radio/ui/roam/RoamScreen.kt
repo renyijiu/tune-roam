@@ -54,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
@@ -243,7 +244,9 @@ fun RoamScreen(
         }
     }
     val remote = usingRemote()
+    val wide = rememberWideLayout()
     val globeFocus = remember { FocusRequester() }
+    val landFocus = remember { FocusRequester() }
     // On a TV the remote starts on the globe, so the arrows turn it straight away.
     LaunchedEffect(Unit) {
         if (remote) globeFocus.requestFocus()
@@ -306,7 +309,11 @@ fun RoamScreen(
             onStep = stepGlobe,
             onStepEnd = settleGlobe,
             onSelect = viewModel::land,
-            modifier = modifier.focusRequester(globeFocus),
+            // Left and right turn the globe, so side by side nothing could reach the buttons
+            // beside it; Down goes to them, and from there the rest of the column is in reach.
+            modifier = modifier
+                .focusRequester(globeFocus)
+                .focusProperties { if (wide) down = landFocus },
         )
     }
     val controls: @Composable () -> Unit = {
@@ -394,7 +401,10 @@ fun RoamScreen(
         ) {
             Button(
                 onClick = viewModel::land,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .focusRing(RoundedCornerShape(20.dp))
+                    .focusRequester(landFocus),
                 shape = RoundedCornerShape(20.dp),
             ) {
                 Text(stringResource(R.string.roam_land))
@@ -404,7 +414,9 @@ fun RoamScreen(
                     seeking = true
                     viewModel.shuffle()
                 },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .focusRing(RoundedCornerShape(20.dp)),
                 shape = RoundedCornerShape(20.dp),
             ) {
                 Text(stringResource(R.string.roam_shuffle))
@@ -412,7 +424,7 @@ fun RoamScreen(
         }
     }
 
-    if (rememberWideLayout()) {
+    if (wide) {
         // Landscape (a TV, a projector, a phone on its side): the globe takes the left half
         // at full height, and the readout sits beside it instead of being squeezed below.
         Row(
