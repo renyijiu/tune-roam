@@ -357,10 +357,12 @@ class GlobePainter(private val density: Float) {
         }
     }
 
-    private companion object {
-        const val BUCKETS = 6
+    companion object {
+        private const val BUCKETS = 6
+
+        /** The globe's radius as a share of the canvas's shorter side, before zoom. */
         const val RADIUS = 0.44f
-        const val SEGMENTS = 72
+        private const val SEGMENTS = 72
     }
 }
 

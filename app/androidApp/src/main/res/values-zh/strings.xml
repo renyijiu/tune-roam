@@ -53,6 +53,7 @@
     <string name="tab_roam">漫游</string>
     <string name="roam_title">漫游</string>
     <string name="roam_hint">转动地球，或点两侧的国家。停下来时，会从那个国家放一座能播的电台。</string>
+    <string name="roam_hint_remote">按遥控器左右键转动地球，按确定键收听。停下来时，会从那个国家放一座能播的电台。</string>
     <string name="roam_land">播放这座</string>
     <string name="roam_shuffle">随便一座</string>
     <string name="roam_empty">附带目录里没有这个国家可播的电台。</string>

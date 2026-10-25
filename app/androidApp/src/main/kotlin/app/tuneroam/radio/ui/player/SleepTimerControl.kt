@@ -5,6 +5,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,11 +49,21 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -60,6 +71,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.tuneroam.radio.R
 import app.tuneroam.radio.presentation.PlayerViewModel
+import app.tuneroam.radio.ui.theme.OkKeys
+import app.tuneroam.radio.ui.theme.focusRing
+import app.tuneroam.radio.ui.theme.usingRemote
 import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
@@ -98,6 +112,7 @@ internal fun SleepTimerControl(viewModel: PlayerViewModel, modifier: Modifier = 
     )
     Row(
         modifier = modifier
+            .focusRing(CircleShape)
             .clip(CircleShape)
             .background(if (active) tint.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.04f))
             .border(1.dp, tint.copy(alpha = if (active) 0.6f else 0.3f), CircleShape)
@@ -149,6 +164,11 @@ private fun SleepTimerSheet(
     var hours by remember { mutableIntStateOf(start / 60) }
     var minutes by remember { mutableIntStateOf(start % 60) }
     val total = hours * 60 + minutes
+    val hoursFocus = remember { FocusRequester() }
+    val remote = usingRemote()
+    LaunchedEffect(Unit) {
+        if (remote) hoursFocus.requestFocus()
+    }
     val choose = { value: Int? ->
         onChoose(value)
         scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
@@ -201,7 +221,9 @@ private fun SleepTimerSheet(
                             if (it == MAX_HOURS) minutes = 0
                         },
                         label = { it.toString() },
-                        modifier = Modifier.width(72.dp),
+                        modifier = Modifier
+                            .width(72.dp)
+                            .focusRequester(hoursFocus),
                     )
                     WheelUnit(stringResource(R.string.sleep_unit_hours))
                     Spacer(Modifier.width(28.dp))
@@ -267,6 +289,7 @@ private fun Wheel(
         }
     }
     val report by rememberUpdatedState(onSelected)
+    val focusManager = LocalFocusManager.current
     LaunchedEffect(state) {
         snapshotFlow { centred }.drop(1).collect {
             haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
@@ -283,7 +306,25 @@ private fun Wheel(
         userScrollEnabled = enabled,
         contentPadding = PaddingValues(vertical = WheelRowHeight * (WHEEL_ROWS / 2)),
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier.height(WheelRowHeight * WHEEL_ROWS),
+        // A remote turns the whole wheel: up and down step it, OK moves on to the button below.
+        // Its rows are left out of focus so the arrows don't walk through all of them.
+        modifier = modifier
+            .height(WheelRowHeight * WHEEL_ROWS)
+            .focusRing(RoundedCornerShape(14.dp))
+            .onKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                when (event.key) {
+                    Key.DirectionUp, Key.DirectionDown -> {
+                        val step = if (event.key == Key.DirectionUp) -1 else 1
+                        val target = (centred + step).coerceIn(values.indices)
+                        scope.launch { state.animateScrollToItem(target) }
+                        true
+                    }
+                    in OkKeys -> focusManager.moveFocus(FocusDirection.Down)
+                    else -> false
+                }
+            }
+            .focusable(enabled),
     ) {
         itemsIndexed(values) { i, value ->
             Box(
@@ -304,6 +345,7 @@ private fun Wheel(
                         scaleX = scale
                         scaleY = scale
                     }
+                    .focusProperties { canFocus = false }
                     .clickable(enabled = enabled, indication = null, interactionSource = null) {
                         scope.launch { state.animateScrollToItem(i) }
                     },

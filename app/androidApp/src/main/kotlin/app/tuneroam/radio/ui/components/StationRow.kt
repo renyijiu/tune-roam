@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Settings
@@ -41,6 +42,7 @@ import app.tuneroam.radio.domain.model.FailureReason
 import app.tuneroam.radio.domain.model.Station
 import app.tuneroam.radio.ui.fx.StationEmblem
 import app.tuneroam.radio.ui.theme.Signal
+import app.tuneroam.radio.ui.theme.focusRing
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 
@@ -55,6 +57,7 @@ fun StationRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .focusRing(RoundedCornerShape(12.dp), outset = (-2).dp)
             .clickable(onClick = onPlay)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
