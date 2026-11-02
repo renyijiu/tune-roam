@@ -4,6 +4,9 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Lets the snapshot refresh workflow run CI on the PR it opens: pull requests opened
+  # with GITHUB_TOKEN don't trigger pull_request runs.
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
