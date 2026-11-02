@@ -27,7 +27,7 @@ jobs:
 
       # Opening a PR from a workflow needs "Allow GitHub Actions to create and approve
       # pull requests" under Settings → Actions → General.
-      - uses: peter-evans/create-pull-request@v7
+      - uses: peter-evans/create-pull-request@v8
         with:
           branch: automation/refresh-bundled-snapshot
           delete-branch: true
