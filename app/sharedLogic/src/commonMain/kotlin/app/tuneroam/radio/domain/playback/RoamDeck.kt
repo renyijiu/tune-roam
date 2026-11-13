@@ -103,9 +103,14 @@ class RoamDeck(
         warmJob = scope.launch {
             syncFilter()
             repeat(WARM_PROBES) {
-                if (lock.withLock { ready.size } >= READY_TARGET) return@launch
+                val drawnWith = lock.withLock {
+                    if (ready.size >= READY_TARGET) return@launch
+                    filledWith
+                }
                 val candidate = nextUnprobed() ?: return@launch
-                if (probe(candidate)) lock.withLock { ready.addLast(candidate) }
+                if (!probe(candidate)) return@repeat
+                // The filter may have changed during the probe; a station drawn with the old one stays out.
+                lock.withLock { if (filledWith == drawnWith) ready.addLast(candidate) }
             }
         }
     }
@@ -142,22 +147,27 @@ class RoamDeck(
     }
 
     private suspend fun nextUnprobed(): Station? {
-        lock.withLock { unprobed.removeFirstOrNull() }?.let { return it }
-        val scores = reachability.scores()
-        val filter = lock.withLock { filledWith }
-        val batch = catalog.random(BATCH_SIZE, filter).valueOrEmpty()
-            .filter { it.hasStream }
-            // Already random. Stations that failed on this phone go to the back.
-            .sortedBy { station -> scores[station.stationUuid]?.let { !it.lastOk } == true }
-        return lock.withLock {
-            val seen = buildSet {
-                current?.let { add(it.stationUuid) }
-                back.forEach { add(it.stationUuid) }
-                ready.forEach { add(it.stationUuid) }
+        repeat(MAX_DRAWS) {
+            lock.withLock { unprobed.removeFirstOrNull() }?.let { return it }
+            val scores = reachability.scores()
+            val filter = lock.withLock { filledWith }
+            val batch = catalog.random(BATCH_SIZE, filter).valueOrEmpty()
+                .filter { it.hasStream }
+                // Already random. Stations that failed on this phone go to the back.
+                .sortedBy { station -> scores[station.stationUuid]?.let { !it.lastOk } == true }
+            lock.withLock {
+                // The filter changed while the batch was loading: draw again with the new one.
+                if (filledWith != filter) return@repeat
+                val seen = buildSet {
+                    current?.let { add(it.stationUuid) }
+                    back.forEach { add(it.stationUuid) }
+                    ready.forEach { add(it.stationUuid) }
+                }
+                batch.filterTo(unprobed) { it.stationUuid !in seen }
+                return unprobed.removeFirstOrNull()
             }
-            batch.filterTo(unprobed) { it.stationUuid !in seen }
-            unprobed.removeFirstOrNull()
         }
+        return null
     }
 
     private fun pushBack(station: Station) {
@@ -172,5 +182,8 @@ class RoamDeck(
         const val WARM_PROBES = 12
         const val BATCH_SIZE = 30
         const val HISTORY_LIMIT = 50
+
+        /** Batches drawn in one [nextUnprobed] when the filter keeps changing under it. */
+        const val MAX_DRAWS = 3
     }
 }
