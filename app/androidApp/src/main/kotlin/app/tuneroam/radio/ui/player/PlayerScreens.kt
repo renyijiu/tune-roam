@@ -60,6 +60,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -103,7 +104,6 @@ import app.tuneroam.radio.ui.theme.rememberWideLayout
 import app.tuneroam.radio.ui.theme.remoteRowLabel
 import app.tuneroam.radio.ui.theme.sharedArtwork
 import app.tuneroam.radio.ui.theme.usingRemote
-import java.util.Locale
 import kotlin.math.sin
 import org.koin.androidx.compose.koinViewModel
 
@@ -270,7 +270,7 @@ fun NowPlayingScreen(
                 Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.back))
             }
             Text(
-                stringResource(R.string.now_playing).uppercase(Locale.getDefault()),
+                stringResource(R.string.now_playing).uppercase(LocalConfiguration.current.locales[0]),
                 style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 3.sp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -519,7 +519,7 @@ private fun OnAirLine(playback: PlaybackSnapshot, modifier: Modifier = Modifier)
         )
         Text(
             text = listOfNotNull(
-                label.uppercase(Locale.getDefault()),
+                label.uppercase(LocalConfiguration.current.locales[0]),
                 station.country.takeIf { it.isNotBlank() },
             ).joinToString("  ·  "),
             style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 1.5.sp),

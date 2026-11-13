@@ -72,6 +72,13 @@ android {
         compose = true
     }
 
+    lint {
+        // Voice search on Android Auto needs MEDIA_PLAY_FROM_SEARCH plus search handling in
+        // the library session; until that exists, the intent filter alone would promise
+        // something the app can't do.
+        disable += "MissingIntentFilterForMediaSearch"
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"

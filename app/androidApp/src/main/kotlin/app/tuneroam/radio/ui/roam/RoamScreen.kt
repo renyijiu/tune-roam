@@ -537,7 +537,7 @@ private fun StatusChip(status: Status, time: State<Float>, modifier: Modifier = 
                 },
         )
         Text(
-            text = label.uppercase(Locale.getDefault()),
+            text = label.uppercase(LocalConfiguration.current.locales[0]),
             style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 2.sp),
             color = color,
         )
