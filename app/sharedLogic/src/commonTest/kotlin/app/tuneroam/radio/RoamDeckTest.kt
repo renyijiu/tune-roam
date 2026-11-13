@@ -1,14 +1,19 @@
 package app.tuneroam.radio
 
 import app.tuneroam.radio.domain.catalog.ReachScore
+import app.tuneroam.radio.domain.model.RoamFilter
+import app.tuneroam.radio.domain.model.Station
 import app.tuneroam.radio.domain.playback.RoamDeck
+import app.tuneroam.radio.domain.repository.StationConnectivity
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 
@@ -85,6 +90,27 @@ class RoamDeckTest {
         assertTrue(connectivity.probed.size <= 12)
         // Still hands back something to try; the playback fallback takes it from there.
         assertTrue(deck.next() != null)
+    }
+
+    @Test
+    fun filterChangedDuringWarmUpKeepsOldStationsOut() = runTest {
+        val low = (1..4).map { testStation("low$it").copy(bitrate = 64) }
+        val high = (1..4).map { testStation("high$it").copy(bitrate = 320) }
+        val settings = FakeSettings()
+        val slow = object : StationConnectivity {
+            override suspend fun probe(station: Station): Boolean {
+                delay(1_000)
+                return true
+            }
+        }
+        val deck = RoamDeck(FakeCatalog(random = low + high), FakeReachability(), slow, settings, this)
+        deck.warmUp()
+        // Warm-up is in the middle of probing a station drawn without a bitrate floor.
+        advanceTimeBy(500)
+        settings.update { it.copy(filter = RoamFilter(minBitrate = 128)) }
+
+        val picks = List(3) { deck.next()!!.stationUuid }
+        assertTrue(picks.all { it.startsWith("high") }, "picked $picks")
     }
 
     private fun TestScope.deck(catalog: FakeCatalog, connectivity: FakeConnectivity) =
