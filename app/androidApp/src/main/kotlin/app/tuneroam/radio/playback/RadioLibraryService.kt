@@ -28,6 +28,7 @@ import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSession.ConnectionResult
+import androidx.media3.session.SessionError
 import app.tuneroam.radio.MainActivity
 import app.tuneroam.radio.R
 import app.tuneroam.radio.core.AppIdentity
@@ -502,7 +503,7 @@ class RadioLibraryService : MediaLibraryService() {
                     val items = this@RadioLibraryService.browser.children(parentId).page(page, pageSize)
                     LibraryResult.ofItemList(items, params)
                 } catch (_: Throwable) {
-                    LibraryResult.ofError(LibraryResult.RESULT_ERROR_IO)
+                    LibraryResult.ofError(SessionError.ERROR_IO)
                 }
                 future.set(result)
             }

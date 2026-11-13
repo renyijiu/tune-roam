@@ -32,6 +32,10 @@ jobs:
       - name: Unit tests
         run: ./gradlew :app:sharedLogic:testAndroidHostTest :app:androidApp:testDebugUnitTest
 
+      # Errors fail the build; warnings only show up in the report.
+      - name: Lint
+        run: ./gradlew :app:androidApp:lintDebug
+
       - name: Debug APK
         run: ./gradlew :app:androidApp:assembleDebug
 
@@ -39,12 +43,14 @@ jobs:
       - name: Release build (R8)
         run: ./gradlew :app:androidApp:assembleRelease
 
-      - name: Test reports
+      - name: Test and lint reports
         if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: test-reports
-          path: app/*/build/reports/tests/
+          path: |
+            app/*/build/reports/tests/
+            app/androidApp/build/reports/lint-results-debug.*
           if-no-files-found: ignore
 
       - name: Debug APK artifact
