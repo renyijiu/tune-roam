@@ -74,6 +74,7 @@ scripts/             随包电台快照的生成脚本
 ### 连通探测
 
 - `KtorStationConnectivity` 只读响应头（`prepareGet { }.execute`）。大多数流忽略 `Range`、永远不结束，读 body 会让能播的台也被判成超时。
+- 探测和播放用同一个 `OkHttpClient`（Koin 里的单例，ExoPlayer 用 `OkHttpDataSource`），TLS、重定向和 `ICY 200 OK` 状态行的处理一致，探测通过的台播放器也打得开。
 - 探测请求不带 `Accept: application/json`（严格的流服务器可能因此拒绝）。只有 Radio Browser 的接口请求自己加 `acceptJson()`；响应都是手动解析，没有装 `ContentNegotiation`。
 - 每座台的连通结果记在本机（`reachability` 表）。搜索页「这台手机连通过」、下一站排序、坏台时的换台都会参考它。
 

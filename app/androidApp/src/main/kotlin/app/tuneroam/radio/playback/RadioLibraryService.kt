@@ -17,7 +17,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.AudioSink
@@ -60,6 +60,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
 import org.koin.android.ext.android.inject
 
 /**
@@ -81,6 +82,7 @@ class RadioLibraryService : MediaLibraryService() {
     private val sleepTimer: SleepTimer by inject()
     private val deck: RoamDeck by inject()
     private val settings: SettingsRepository by inject()
+    private val okHttpClient: OkHttpClient by inject()
     private val leveler = LoudnessLeveler(AudioMeter.Shared)
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -108,9 +110,10 @@ class RadioLibraryService : MediaLibraryService() {
 
     override fun onCreate() {
         super.onCreate()
-        val httpFactory = DefaultHttpDataSource.Factory()
+        // The OkHttpClient the stream probes use, so playback and probes agree on what
+        // answers. OkHttp follows http <-> https redirects by default.
+        val httpFactory = OkHttpDataSource.Factory(okHttpClient)
             .setUserAgent(AppIdentity.USER_AGENT)
-            .setAllowCrossProtocolRedirects(true)
         val renderers = object : DefaultRenderersFactory(this) {
             override fun buildAudioSink(
                 context: Context,

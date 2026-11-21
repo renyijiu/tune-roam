@@ -3,6 +3,7 @@ package app.tuneroam.radio.di
 import app.tuneroam.radio.domain.playback.PlaybackCommands
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import okhttp3.OkHttpClient
 import org.koin.core.annotation.KoinInternalApi
 
 @OptIn(KoinInternalApi::class)
@@ -14,6 +15,16 @@ class AndroidAppModuleTest {
         assertTrue(
             keys.any { it == name || it.startsWith("$name::") },
             "Shared ViewModels request PlaybackCommands. Bind the Media3 controller as that interface. Keys: $keys",
+        )
+    }
+
+    @Test
+    fun playbackServiceFindsTheSharedOkHttpClient() {
+        val name = OkHttpClient::class.qualifiedName!!
+        val keys = androidSharedModules().flatMap { it.mappings.keys }
+        assertTrue(
+            keys.any { it == name || it.startsWith("$name::") },
+            "RadioLibraryService injects the OkHttpClient the stream probes use. Keys: $keys",
         )
     }
 }
