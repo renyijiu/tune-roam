@@ -48,7 +48,7 @@ scripts/             随包电台快照的生成脚本
 
 分层方式参考了 [ListenUp](https://github.com/ListenUpApp/ListenUp)（AGPL-3.0 的有声书应用），只沿用结构，没有复制源码。
 
-- **模块**：核心在 `app/sharedLogic`，Android 应用是薄的 `app/androidApp`。界面不放进共享模块，因为 iOS 计划用 SwiftUI。
+- **模块**：核心在 `app/sharedLogic`，Android 应用是薄的 `app/androidApp`。界面不放进共享模块，因为 iOS 计划用 SwiftUI。共享模块已经带 iOS 目标：`iosMain` 提供 Darwin 引擎的 HTTP 客户端和 SQLDelight 原生驱动；共享代码里做阻塞操作统一用 `core/AppDispatchers.kt` 的 `ioDispatcher`（`Dispatchers.IO` 在 iOS 上要另外导入）。
 - **分层**：领域模型与仓库接口、数据实现、共享 ViewModel。界面读仓库和播放状态，不自己拼 HTTP。
 - **依赖注入**：Koin。共享模块加一个平台模块（HTTP 引擎、SQL 驱动）。`startDependencyInjection()` 的签名里没有 Koin 类型，留给以后的 Swift 壳；Android 的 `Application` 自己 `startKoin` 并带上 `androidContext`。
 - **播放**：编排都在共享的 `PlaybackSession`：起播看门狗、换备用地址、自动换相近台（`SimilarStations`）、下一站 / 上一站（`RoamDeck`）、长时间暂停后回到直播点、睡眠定时（`SleepTimer`），以及播放历史、连通记录和点击计数。`PlaybackCoordinator` 只管单个流的状态（当前地址、起播超时、界面显示什么）。壳要做两件事：实现 `PlaybackEngine`（打开某个地址、暂停、报告引擎状态），把引擎事件（出错、开始播放、暂停、曲名）转给 session；界面通过 `PlaybackCommands` 发播放 / 暂停 / 上一站 / 下一站。Android 的壳是 `RadioLibraryService`（`MediaLibraryService` + ExoPlayer），session 由 Koin 的 `factory` 按引擎和协程作用域创建。
@@ -143,7 +143,7 @@ sdk.dir=/path/to/android-sdk
 
 调试 APK 在 `app/androidApp/build/outputs/apk/debug/androidApp-debug.apk`。也可以用 Android Studio 打开仓库直接运行 `androidApp`。首次播放会请求通知权限，否则 Android 13 及以上可能没有媒体通知。很多电台只提供 `http://` 流，因此应用允许明文流量。
 
-CI（`.github/workflows/ci.yml`）在每个 PR 和推到 `main` 时跑单元测试、`assembleDebug` 和未签名的 `assembleRelease`（检查 R8 和资源压缩）。调试 APK 作为构建产物保留 14 天；测试失败时附上测试报告。
+CI（`.github/workflows/ci.yml`）在每个 PR 和推到 `main` 时跑单元测试、`assembleDebug` 和未签名的 `assembleRelease`（检查 R8 和资源压缩）。另有一个 macOS 任务把共享模块编译成 iOS 目标（`iosArm64`、`iosSimulatorArm64`），并在 iOS 模拟器上跑 `commonTest`，`commonMain` 里混进只有 JVM 才有的调用时会在这里失败。本地跑：`./gradlew :app:sharedLogic:iosSimulatorArm64Test`（需要 Xcode 和一个 iOS 模拟器运行时）。调试 APK 作为构建产物保留 14 天；测试失败时附上测试报告。
 
 ### 改名
 
@@ -202,7 +202,7 @@ App 也会在手机上按同样的规则自己更新这份清单（见「离线�
 
 ## 下一步
 
-- **iOS**：在 `sharedLogic` 增加 Apple 目标，用 SwiftUI 做壳。AVPlayer 实现 `PlaybackEngine`，把缓冲、失败和 ICY 元数据交给 `PlaybackSession`，换台、回退和睡眠定时直接复用。Swift 侧用一个很小的 Flow 桥接把共享 ViewModel 的 `StateFlow` 收成 SwiftUI 状态。CarPlay 复用同一播放核心和浏览结构。
+- **iOS**：`sharedLogic` 已经能编译成 iOS 目标并在模拟器上跑测试，还差 SwiftUI 壳和导出给 Swift 的 framework。AVPlayer 实现 `PlaybackEngine`，把缓冲、失败和 ICY 元数据交给 `PlaybackSession`，换台、回退和睡眠定时直接复用。Swift 侧用一个很小的 Flow 桥接把共享 ViewModel 的 `StateFlow` 收成 SwiftUI 状态。CarPlay 复用同一播放核心和浏览结构。
 - **国内车机**：HiCar、CarLife 还没接。以后要接时，优先复用现在的库会话浏览树和播放状态。
 
 ## 已知限制

@@ -1,5 +1,6 @@
 package app.tuneroam.radio.data.repository
 
+import app.tuneroam.radio.core.ioDispatcher
 import app.tuneroam.radio.core.runCancellable
 import app.tuneroam.radio.data.local.CatalogCache
 import app.tuneroam.radio.data.remote.FallbackCatalog
@@ -16,7 +17,6 @@ import app.tuneroam.radio.domain.model.similarQuery
 import app.tuneroam.radio.domain.repository.RadioCatalog
 import io.ktor.client.network.sockets.ConnectTimeoutException
 import io.ktor.client.plugins.HttpRequestTimeoutException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -78,7 +78,7 @@ class OfflineFirstCatalog(
             client.search(similarQuery(station)).filter { it.stationUuid != station.stationUuid }.take(20)
         }
         live.getOrNull()?.takeIf { it.isNotEmpty() }?.let { return LoadResult.Fresh(it) }
-        val bundled = withContext(Dispatchers.IO) { fallback.similar(station) }
+        val bundled = withContext(ioDispatcher) { fallback.similar(station) }
         val error = live.exceptionOrNull()
         return if (bundled.isEmpty() && error != null) {
             LoadResult.Failed(error.toReason())
@@ -92,13 +92,13 @@ class OfflineFirstCatalog(
         val fetch = if (filter.isActive) (limit * 3).coerceAtMost(MAX_RANDOM_FETCH) else limit
         val live = runCancellable { client.random(fetch, filter).take(limit) }
         live.getOrNull()?.takeIf { it.isNotEmpty() }?.let { return LoadResult.Fresh(it) }
-        val bundled = withContext(Dispatchers.IO) { fallback.random(fallback.all().size) }.filter(filter::matches).take(limit)
+        val bundled = withContext(ioDispatcher) { fallback.random(fallback.all().size) }.filter(filter::matches).take(limit)
         return LoadResult.Cached(bundled, stale = true, origin = CatalogOrigin.BUNDLED)
     }
 
     override suspend fun byUuid(stationUuid: String): Station? =
         runCancellable { client.byUuid(stationUuid) }.getOrNull()
-            ?: withContext(Dispatchers.IO) {
+            ?: withContext(ioDispatcher) {
                 fallback.all().firstOrNull { it.stationUuid.equals(stationUuid, ignoreCase = true) }
             }
 
@@ -134,7 +134,7 @@ private inline fun <T> cached(
                 emit(LoadResult.Cached(seed, stale = true, origin = origin))
             }
         }
-}.flowOn(Dispatchers.IO)
+}.flowOn(ioDispatcher)
 
 internal fun Throwable.toReason(): FailureReason = when (this) {
     is HttpRequestTimeoutException, is ConnectTimeoutException -> FailureReason.TIMEOUT

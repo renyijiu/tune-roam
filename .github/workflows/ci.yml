@@ -59,3 +59,48 @@ jobs:
           name: tune-roam-debug-apk
           path: app/androidApp/build/outputs/apk/debug/*.apk
           retention-days: 14
+
+  # There is no iOS app yet. Compiling the shared module for iOS and running its common
+  # tests on a simulator keeps JVM-only calls out of commonMain.
+  ios:
+    name: Shared module on iOS
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      # Kotlin/Native downloads its toolchain into ~/.konan; keep it between runs.
+      - uses: actions/cache@v6
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: konan-${{ runner.os }}-
+
+      - name: Compile for iOS devices
+        run: ./gradlew :app:sharedLogic:compileKotlinIosArm64
+
+      - name: Common tests on the iOS simulator
+        run: ./gradlew :app:sharedLogic:iosSimulatorArm64Test
+
+      # Gradle prints no test count, and a task with nothing to run still passes.
+      - name: Count iOS tests
+        run: |
+          count=$(cat app/sharedLogic/build/test-results/iosSimulatorArm64Test/*.xml \
+            | sed -nE 's/.*<testsuite [^>]*tests="([0-9]+)".*/\1/p' | paste -sd+ - | bc)
+          echo "Ran ${count:-0} tests on the iOS simulator."
+          [ "${count:-0}" -gt 0 ]
+
+      - name: Test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-test-reports
+          path: app/sharedLogic/build/reports/tests/
+          if-no-files-found: ignore
