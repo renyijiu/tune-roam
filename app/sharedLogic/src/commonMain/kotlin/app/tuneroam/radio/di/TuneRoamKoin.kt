@@ -18,6 +18,8 @@ import app.tuneroam.radio.data.repository.OfflineFirstCatalog
 import app.tuneroam.radio.data.repository.RadioBrowserSnapshot
 import app.tuneroam.radio.domain.catalog.FavoritesRefresh
 import app.tuneroam.radio.domain.playback.PlaybackCoordinator
+import app.tuneroam.radio.domain.playback.PlaybackEngine
+import app.tuneroam.radio.domain.playback.PlaybackSession
 import app.tuneroam.radio.domain.playback.RoamDeck
 import app.tuneroam.radio.domain.playback.SimilarStations
 import app.tuneroam.radio.domain.playback.SleepTimer
@@ -29,6 +31,7 @@ import app.tuneroam.radio.domain.repository.SettingsRepository
 import app.tuneroam.radio.domain.repository.SnapshotRepository
 import app.tuneroam.radio.domain.repository.StationConnectivity
 import app.tuneroam.radio.domain.repository.TrackRepository
+import kotlinx.coroutines.CoroutineScope
 import org.koin.core.module.Module
 import org.koin.dsl.module
 
@@ -58,6 +61,10 @@ private val dataModule = module {
     single { SimilarStations(get(), get(), get()) }
     single { RoamDeck(get(), get(), get(), get()) }
     single { SleepTimer() }
+    // One per player: the shell passes its engine and the scope it runs on.
+    factory { (engine: PlaybackEngine, scope: CoroutineScope) ->
+        PlaybackSession(engine, scope, get(), get(), get(), get(), get(), get(), get())
+    }
 }
 
 internal val sharedModules: List<Module> = listOf(dataModule, platformModule)

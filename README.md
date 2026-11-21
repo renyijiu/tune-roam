@@ -34,7 +34,7 @@ Android 上的全球网络电台。共享的 Kotlin 核心不依赖 Android，�
 ```
 app/sharedLogic/     Kotlin Multiplatform 核心（目前只有 Android 目标）
   core/              应用标识、时间、JSON 配置
-  domain/            电台模型、目录接口、筛选、播放策略（PlaybackCoordinator、RoamDeck 等）
+  domain/            电台模型、目录接口、筛选、播放策略（PlaybackSession、PlaybackCoordinator、RoamDeck 等）
   data/              Ktor 客户端、随包快照、SQLDelight 存储
   presentation/      ViewModel（界面状态，不含 Compose）
   di/                Koin 模块；平台只提供 HTTP 引擎和数据库驱动
@@ -51,7 +51,7 @@ scripts/             随包电台快照的生成脚本
 - **模块**：核心在 `app/sharedLogic`，Android 应用是薄的 `app/androidApp`。界面不放进共享模块，因为 iOS 计划用 SwiftUI。
 - **分层**：领域模型与仓库接口、数据实现、共享 ViewModel。界面读仓库和播放状态，不自己拼 HTTP。
 - **依赖注入**：Koin。共享模块加一个平台模块（HTTP 引擎、SQL 驱动）。`startDependencyInjection()` 的签名里没有 Koin 类型，留给以后的 Swift 壳；Android 的 `Application` 自己 `startKoin` 并带上 `androidContext`。
-- **播放**：共享的 `PlaybackCoordinator` 决定先试哪个地址、什么时候换；`PlaybackCommands` 是壳要提供的播放 / 暂停 / 上一站 / 下一站。Android 的实现是 `RadioLibraryService`（`MediaLibraryService` + ExoPlayer）。换相近台（`SimilarStations`）、下一站（`RoamDeck`）和睡眠定时（`SleepTimer`）都在共享核心，壳只负责调用。
+- **播放**：编排都在共享的 `PlaybackSession`：起播看门狗、换备用地址、自动换相近台（`SimilarStations`）、下一站 / 上一站（`RoamDeck`）、长时间暂停后回到直播点、睡眠定时（`SleepTimer`），以及播放历史、连通记录和点击计数。`PlaybackCoordinator` 只管单个流的状态（当前地址、起播超时、界面显示什么）。壳要做两件事：实现 `PlaybackEngine`（打开某个地址、暂停、报告引擎状态），把引擎事件（出错、开始播放、暂停、曲名）转给 session；界面通过 `PlaybackCommands` 发播放 / 暂停 / 上一站 / 下一站。Android 的壳是 `RadioLibraryService`（`MediaLibraryService` + ExoPlayer），session 由 Koin 的 `factory` 按引擎和协程作用域创建。
 - **本地库**：SQLDelight。收藏和缓存都很小；测试可以用 JDBC 驱动直接在 JVM 上跑，不必装模拟器。
 
 ## 实现要点
@@ -81,8 +81,8 @@ scripts/             随包电台快照的生成脚本
 ### 播放和备用地址
 
 - `StreamFallback` 生成候选地址：先 `url_resolved`，与 `url` 不同时再试 `url`。空地址丢掉，相同的只试一次。
-- `PlaybackCoordinator` 记下当前尝试。引擎报错，或缓冲 12 秒还没开始，就换下一个地址。服务每秒把引擎状态报给 `onClock`，超时只由协调器判断，暂停的时间不计入。都失败时状态是 `UNAVAILABLE`。
-- 之后 `SimilarStations` 按标签或国家找相近的台，跳过这一轮试过的，优先这台手机连通过的，并做一次短探测。服务自动这样换台（最多三次）；播放页的「换一座相近的」也走它。自动换到的台不进「上一站」历史。
+- `PlaybackCoordinator` 记下当前尝试。引擎报错，或缓冲 12 秒还没开始，就换下一个地址。`PlaybackSession` 每秒把引擎状态报给 `onClock`，超时只由协调器判断，暂停的时间不计入。都失败时状态是 `UNAVAILABLE`。
+- 之后 `SimilarStations` 按标签或国家找相近的台，跳过这一轮试过的，优先这台手机连通过的，并做一次短探测。`PlaybackSession` 自动这样换台（最多三次，听众自己换台后重新计数）；播放页的「换一座相近的」也走它。自动换到的台不进「上一站」历史。
 - 服务去掉了 seek 命令，`MediaItem` 标成直播，不显示进度条。暂停超过 30 秒再继续，会从直播点重新连接，而不是先放旧缓冲。调音量不会暂停播放。
 - 睡眠定时由播放服务倒计时，离开播放页也照样会停；重新设定会取消旧的倒计时。
 
@@ -202,7 +202,7 @@ App 也会在手机上按同样的规则自己更新这份清单（见「离线�
 
 ## 下一步
 
-- **iOS**：在 `sharedLogic` 增加 Apple 目标，用 SwiftUI 做壳。播放实现 `PlaybackCommands`，底层用 AVPlayer，把缓冲、失败和 ICY 元数据交给 `PlaybackCoordinator`。Swift 侧用一个很小的 Flow 桥接把共享 ViewModel 的 `StateFlow` 收成 SwiftUI 状态。CarPlay 复用同一播放核心和浏览结构。
+- **iOS**：在 `sharedLogic` 增加 Apple 目标，用 SwiftUI 做壳。AVPlayer 实现 `PlaybackEngine`，把缓冲、失败和 ICY 元数据交给 `PlaybackSession`，换台、回退和睡眠定时直接复用。Swift 侧用一个很小的 Flow 桥接把共享 ViewModel 的 `StateFlow` 收成 SwiftUI 状态。CarPlay 复用同一播放核心和浏览结构。
 - **国内车机**：HiCar、CarLife 还没接。以后要接时，优先复用现在的库会话浏览树和播放状态。
 
 ## 已知限制
