@@ -89,6 +89,14 @@ jobs:
       - name: Common tests on the iOS simulator
         run: ./gradlew :app:sharedLogic:iosSimulatorArm64Test
 
+      # Gradle prints no test count, and a task with nothing to run still passes.
+      - name: Count iOS tests
+        run: |
+          count=$(cat app/sharedLogic/build/test-results/iosSimulatorArm64Test/*.xml \
+            | sed -nE 's/.*<testsuite [^>]*tests="([0-9]+)".*/\1/p' | paste -sd+ - | bc)
+          echo "Ran ${count:-0} tests on the iOS simulator."
+          [ "${count:-0}" -gt 0 ]
+
       - name: Test reports
         if: failure()
         uses: actions/upload-artifact@v7
