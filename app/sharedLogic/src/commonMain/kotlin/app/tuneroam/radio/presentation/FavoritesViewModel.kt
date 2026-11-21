@@ -2,6 +2,7 @@ package app.tuneroam.radio.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.tuneroam.radio.domain.catalog.FavoritesRefresh
 import app.tuneroam.radio.domain.model.Station
 import app.tuneroam.radio.domain.playback.PlaybackCommands
 import app.tuneroam.radio.domain.repository.FavoritesRepository
@@ -16,7 +17,12 @@ class FavoritesViewModel(
     private val favorites: FavoritesRepository,
     private val commands: PlaybackCommands,
     history: HistoryRepository,
+    refresh: FavoritesRefresh,
 ) : ViewModel() {
+    init {
+        viewModelScope.launch { refresh.refreshIfDue() }
+    }
+
     val stations: StateFlow<List<Station>> = favorites.observe()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

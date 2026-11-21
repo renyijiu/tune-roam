@@ -133,6 +133,11 @@ class RadioBrowserClient(
     private val http: HttpClient,
     private val servers: ServerDirectory,
 ) {
+    private companion object {
+        /** About 3.7 KB of query string, well inside what servers accept. */
+        const val BY_UUID_BATCH = 100
+    }
+
     suspend fun topClicked(limit: Int, hideBroken: Boolean): List<Station> {
         val fetch = if (hideBroken) (limit * 3).coerceAtMost(200) else limit
         val raw = getStations("/json/stations/topclick/$fetch")
@@ -156,6 +161,12 @@ class RadioBrowserClient(
 
     suspend fun byUuid(stationUuid: String): Station? =
         getStations("/json/stations/byuuid/${stationUuid.trim()}").firstOrNull()
+
+    /** Several stations in one request per hundred; deleted ones are simply missing. */
+    suspend fun byUuids(stationUuids: List<String>): List<Station> =
+        stationUuids.map { it.trim() }.filter { it.isNotEmpty() }.distinct().chunked(BY_UUID_BATCH).flatMap { batch ->
+            getStations("/json/stations/byuuid", mapOf("uuids" to batch.joinToString(",")))
+        }
 
     suspend fun countries(): List<Country> = get("/json/countries") { body ->
         RadioPayloads.countries(body)

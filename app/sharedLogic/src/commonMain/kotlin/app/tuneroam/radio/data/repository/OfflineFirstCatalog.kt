@@ -102,6 +102,9 @@ class OfflineFirstCatalog(
                 fallback.all().firstOrNull { it.stationUuid.equals(stationUuid, ignoreCase = true) }
             }
 
+    override suspend fun latest(stationUuids: List<String>): List<Station> =
+        if (stationUuids.isEmpty()) emptyList() else runCancellable { client.byUuids(stationUuids) }.getOrDefault(emptyList())
+
     override suspend fun registerClick(stationUuid: String) {
         client.registerClick(stationUuid)
     }
