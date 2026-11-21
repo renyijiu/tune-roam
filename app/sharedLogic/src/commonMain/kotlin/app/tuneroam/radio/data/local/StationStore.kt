@@ -147,9 +147,15 @@ class SqlMirrorMemory(
     }
 }
 
+/**
+ * Keeps the [keep] most recently checked stations. Every roam skip probes a new station,
+ * and both the roam deck and the search screen read the whole table, so it must not grow
+ * without end. A station that drops out simply counts as never tried.
+ */
 class SqlReachabilityRepository(
     private val database: TuneRoamDatabase,
     private val clock: () -> Long = ::epochMillis,
+    private val keep: Long = KEEP_STATIONS,
 ) : ReachabilityRepository {
     override fun observe(): Flow<Map<String, ReachScore>> =
         database.catalogQueries.selectReachability()
@@ -175,8 +181,14 @@ class SqlReachabilityRepository(
                     lastOk = if (ok) 1L else 0L,
                     checkedAt = clock(),
                 )
+                // Only a new row can push the table over the limit.
+                if (existing == null) database.catalogQueries.trimReachability(keep)
             }
         }
+    }
+
+    private companion object {
+        const val KEEP_STATIONS = 2_000L
     }
 }
 

@@ -163,6 +163,8 @@ SELECT *
 FROM cachedCountry
 ORDER BY stationCount DESC;
 
+-- Whether this phone reached a station's stream. Trimmed to the most recently checked
+-- stations (see SqlReachabilityRepository), as roaming probes a new one on every skip.
 CREATE TABLE reachability (
     stationUuid TEXT NOT NULL PRIMARY KEY,
     successes INTEGER NOT NULL,
@@ -193,6 +195,12 @@ INSERT OR REPLACE INTO reachability (
     :failures,
     :lastOk,
     :checkedAt
+);
+
+trimReachability:
+DELETE FROM reachability
+WHERE stationUuid NOT IN (
+    SELECT stationUuid FROM reachability ORDER BY checkedAt DESC LIMIT :keep
 );
 
 CREATE TABLE playHistory (
