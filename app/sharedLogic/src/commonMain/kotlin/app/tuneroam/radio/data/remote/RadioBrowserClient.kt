@@ -2,6 +2,7 @@ package app.tuneroam.radio.data.remote
 
 import app.tuneroam.radio.core.epochMillis
 import app.tuneroam.radio.core.runCancellable
+import app.tuneroam.radio.data.http.acceptJson
 import app.tuneroam.radio.domain.catalog.mirrorHosts
 import app.tuneroam.radio.domain.model.CatalogQuery
 import app.tuneroam.radio.domain.model.Country
@@ -110,6 +111,7 @@ class ServerDirectory(
     }.getOrDefault(false)
 
     private fun HttpRequestBuilder.shortTimeout() {
+        acceptJson()
         timeout {
             requestTimeoutMillis = probeTimeoutMs
             connectTimeoutMillis = probeTimeoutMs
@@ -161,7 +163,7 @@ class RadioBrowserClient(
 
     suspend fun registerClick(stationUuid: String) {
         val base = servers.current()
-        http.get("$base/json/url/${stationUuid.trim()}")
+        http.get("$base/json/url/${stationUuid.trim()}") { acceptJson() }
     }
 
     private suspend fun getStations(path: String, query: Map<String, String> = emptyMap()): List<Station> =
@@ -181,6 +183,7 @@ class RadioBrowserClient(
             val base = servers.current()
             val outcome = runCancellable {
                 val response = http.get("$base$path") {
+                    acceptJson()
                     timeout {
                         requestTimeoutMillis = ServerDirectory.PROBE_TIMEOUT_MS * 4
                         connectTimeoutMillis = ServerDirectory.PROBE_TIMEOUT_MS
