@@ -12,7 +12,7 @@ import androidx.core.app.NotificationCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Metadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -416,8 +416,12 @@ class RadioLibraryService : MediaLibraryService() {
             }
         }
 
-        override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
-            coordinator.onIcyTitle(mediaMetadata.title?.toString())
+        // The song comes from the stream's own metadata, not onMediaMetadataChanged: there
+        // the MediaItem's title (the station name) hides it (see streamTrackTitle). A new
+        // stream starts without one, as PlaybackCoordinator.begin clears it.
+        override fun onMetadata(metadata: Metadata) {
+            val title = streamTrackTitle(metadata) ?: return
+            coordinator.onIcyTitle(title)
             publishMetadata(coordinator.snapshot.value.icyTitle)
         }
     }
