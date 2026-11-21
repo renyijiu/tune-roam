@@ -5,7 +5,10 @@ import app.tuneroam.radio.domain.model.LoadResult
 import app.tuneroam.radio.domain.playback.StreamFallback
 import app.tuneroam.radio.domain.repository.FavoritesRepository
 import app.tuneroam.radio.domain.repository.RadioCatalog
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.produceIn
+import kotlinx.coroutines.withTimeoutOrNull
 
 internal class LibraryBrowser(
     private val catalog: RadioCatalog,
@@ -42,14 +45,41 @@ internal class LibraryBrowser(
     }
 }
 
-private suspend fun <T> Flow<LoadResult<List<T>>>.awaitValue(): List<T> {
+/**
+ * The list a car head unit or the system media controls should see, without waiting
+ * out the live catalog. Those browsers give up after a few seconds, and from the
+ * mainland the live request often takes its full timeout (several mirrors in a row).
+ *
+ * A live list ends the wait. A cached list is kept and the live one gets [liveGraceMs]
+ * more to replace it. Nothing at all after [totalMs] reads as empty.
+ */
+internal suspend fun <T> Flow<LoadResult<List<T>>>.awaitValue(
+    liveGraceMs: Long = LIVE_GRACE_MS,
+    totalMs: Long = TOTAL_WAIT_MS,
+): List<T> = coroutineScope {
+    val results = this@awaitValue.produceIn(this)
     var latest: List<T> = emptyList()
-    collect { result ->
-        when (result) {
-            is LoadResult.Fresh -> latest = result.value
-            is LoadResult.Cached -> latest = result.value
-            is LoadResult.Failed -> Unit
+    withTimeoutOrNull(totalMs) {
+        for (result in results) {
+            when (result) {
+                is LoadResult.Fresh -> {
+                    latest = result.value
+                    return@withTimeoutOrNull
+                }
+                is LoadResult.Cached -> {
+                    latest = result.value
+                    if (result.value.isEmpty()) continue
+                    val live = withTimeoutOrNull(liveGraceMs) { results.receiveCatching().getOrNull() }
+                    if (live is LoadResult.Fresh) latest = live.value
+                    return@withTimeoutOrNull
+                }
+                is LoadResult.Failed -> Unit
+            }
         }
     }
-    return latest
+    results.cancel()
+    latest
 }
+
+private const val LIVE_GRACE_MS = 2_000L
+private const val TOTAL_WAIT_MS = 8_000L
