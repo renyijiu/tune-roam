@@ -7,6 +7,28 @@ plugins {
     alias(libs.plugins.sqldelight)
 }
 
+/** AppVersion.NAME for AppIdentity, from `tuneroam.versionName` in gradle.properties. */
+val generateAppVersion by tasks.registering {
+    val versionName = providers.gradleProperty("tuneroam.versionName")
+    val outputDir = layout.buildDirectory.dir("generated/appVersion/kotlin")
+    inputs.property("versionName", versionName)
+    outputs.dir(outputDir)
+    doLast {
+        val file = outputDir.get().file("app/tuneroam/radio/core/AppVersion.kt").asFile
+        file.parentFile.mkdirs()
+        file.writeText(
+            """
+            |package app.tuneroam.radio.core
+            |
+            |// Generated from tuneroam.versionName in gradle.properties. Do not edit.
+            |internal object AppVersion {
+            |    const val NAME = "${versionName.get()}"
+            |}
+            |""".trimMargin(),
+        )
+    }
+}
+
 kotlin {
     android {
         namespace = "app.tuneroam.radio.shared"
@@ -19,6 +41,9 @@ kotlin {
     }
 
     sourceSets {
+        commonMain {
+            kotlin.srcDir(generateAppVersion)
+        }
         commonMain.dependencies {
             implementation(libs.coroutines.core)
             implementation(libs.serialization.json)
