@@ -1,7 +1,7 @@
 name: Release
 
 # Pushing a tag like v0.1.0 builds a signed release APK and publishes it as a GitHub
-# Release for manual download. The tag must match versionName and AppIdentity.VERSION.
+# Release for manual download. The tag must match tuneroam.versionName in gradle.properties.
 on:
   push:
     tags: ["v*"]
@@ -24,11 +24,9 @@ jobs:
         id: version
         run: |
           tag="${GITHUB_REF_NAME#v}"
-          gradle_version=$(sed -nE 's/^ *versionName = "([^"]+)".*/\1/p' app/androidApp/build.gradle.kts)
-          identity_version=$(sed -nE 's/^ *const val VERSION = "([^"]+)".*/\1/p' \
-            app/sharedLogic/src/commonMain/kotlin/app/tuneroam/radio/core/AppIdentity.kt)
-          if [ "$tag" != "$gradle_version" ] || [ "$tag" != "$identity_version" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match versionName ($gradle_version) and AppIdentity.VERSION ($identity_version)."
+          version=$(sed -nE 's/^tuneroam\.versionName=(.+)$/\1/p' gradle.properties)
+          if [ "$tag" != "$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match tuneroam.versionName ($version) in gradle.properties."
             exit 1
           fi
           echo "name=$tag" >> "$GITHUB_OUTPUT"

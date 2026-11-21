@@ -147,7 +147,7 @@ CI（`.github/workflows/ci.yml`）在每个 PR 和推到 `main` 时跑单元测�
 ### 改名
 
 - 界面上的名字只用字符串资源 `app_name`：`values/strings.xml`（Tune Roam）和 `values-zh/strings.xml`（随声），不在 Compose 里写死。
-- User-Agent 和版本号在 `app/sharedLogic/.../core/AppIdentity.kt`；`VERSION` 要和 `app/androidApp/build.gradle.kts` 的 `versionName` 保持一致。
+- User-Agent 在 `app/sharedLogic/.../core/AppIdentity.kt`。版本号只写在 `gradle.properties` 的 `tuneroam.versionName` 和 `tuneroam.versionCode`：APK 的 `versionName`、`versionCode` 和 `AppIdentity.VERSION`（构建时生成的 `AppVersion`）都从这里来。
 - 包名 `app.tuneroam.radio` 写在 `app/androidApp/build.gradle.kts` 的 `applicationId` 和 `namespace`。
 
 ### 发布
@@ -169,7 +169,7 @@ keytool -genkeypair -v -keystore release.jks -alias tuneroam -keyalg RSA -keysiz
 
 密钥丢了就无法再给已安装的用户推送更新，请另外备份。
 
-GitHub Release 由 `.github/workflows/release.yml` 自动发：推一个 `v` 开头的 tag，它会跑单元测试、构建签名的 release APK，然后建一个 Release，附上 `tune-roam-<版本>.apk` 和对应的 `.sha256`，用户从 Releases 页面下载安装。版本号带 `-`（如 `v0.2.0-beta.1`）时标为预发布。tag 必须和 `versionName`、`AppIdentity.VERSION` 一致，否则直接失败：
+GitHub Release 由 `.github/workflows/release.yml` 自动发：推一个 `v` 开头的 tag，它会跑单元测试、构建签名的 release APK，然后建一个 Release，附上 `tune-roam-<版本>.apk` 和对应的 `.sha256`，用户从 Releases 页面下载安装。版本号带 `-`（如 `v0.2.0-beta.1`）时标为预发布。tag 必须和 `gradle.properties` 里的 `tuneroam.versionName` 一致，否则直接失败：
 
 ```bash
 git tag v0.1.0
@@ -179,7 +179,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-第一次用之前，在仓库的 Settings → Secrets and variables → Actions 里加四个 secret：`TUNEROAM_KEYSTORE_BASE64`（`base64 -i release.jks | pbcopy` 得到的内容）、`TUNEROAM_KEYSTORE_PASSWORD`、`TUNEROAM_KEY_ALIAS`、`TUNEROAM_KEY_PASSWORD`。缺任何一个都会让工作流失败，而不是发出一个装不上的未签名 APK。每次发版记得同时调高 `versionCode`，否则已安装的用户无法覆盖升级。
+第一次用之前，在仓库的 Settings → Secrets and variables → Actions 里加四个 secret：`TUNEROAM_KEYSTORE_BASE64`（`base64 -i release.jks | pbcopy` 得到的内容）、`TUNEROAM_KEYSTORE_PASSWORD`、`TUNEROAM_KEY_ALIAS`、`TUNEROAM_KEY_PASSWORD`。缺任何一个都会让工作流失败，而不是发出一个装不上的未签名 APK。每次发版记得同时调高 `tuneroam.versionCode`，否则已安装的用户无法覆盖升级。
 
 ### 随包电台快照
 

@@ -36,8 +36,8 @@ android {
         applicationId = "app.tuneroam.radio"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = providers.gradleProperty("tuneroam.versionCode").get().toInt()
+        versionName = providers.gradleProperty("tuneroam.versionName").get()
     }
 
     signingConfigs {
