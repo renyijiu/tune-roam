@@ -172,9 +172,13 @@ class RadioBrowserClient(
         RadioPayloads.countries(body)
     }
 
+    /**
+     * Counts a play on Radio Browser. It goes through [get] like the catalog calls, so a
+     * dead mirror is skipped (and invalidated for them) instead of holding the request
+     * for the client's 20 s default. The body is not needed.
+     */
     suspend fun registerClick(stationUuid: String) {
-        val base = servers.current()
-        http.get("$base/json/url/${stationUuid.trim()}") { acceptJson() }
+        get("/json/url/${stationUuid.trim()}") { }
     }
 
     private suspend fun getStations(path: String, query: Map<String, String> = emptyMap()): List<Station> =

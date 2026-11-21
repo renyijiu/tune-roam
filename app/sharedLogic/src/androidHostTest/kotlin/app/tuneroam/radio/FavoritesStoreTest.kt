@@ -3,6 +3,7 @@ package app.tuneroam.radio
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import app.tuneroam.radio.data.local.SqlFavoritesRepository
 import app.tuneroam.radio.data.local.SqlHistoryRepository
+import app.tuneroam.radio.data.local.SqlReachabilityRepository
 import app.tuneroam.radio.data.local.SqlSettingsRepository
 import app.tuneroam.radio.data.local.SqlTrackRepository
 import app.tuneroam.radio.data.local.TuneRoamDatabase
@@ -76,6 +77,25 @@ class FavoritesStoreTest {
         now = 3_000L
         history.record(station("1", "Morning"))
         assertEquals("1", history.latest()?.stationUuid)
+    }
+
+    @Test
+    fun reachabilityKeepsOnlyTheMostRecentlyCheckedStations() = runTest {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        TuneRoamDatabase.Schema.create(driver)
+        var now = 1_000L
+        val reach = SqlReachabilityRepository(TuneRoamDatabase(driver), clock = { now }, keep = 3)
+
+        listOf("a", "b", "c").forEach { id -> now += 1; reach.note(id, ok = true) }
+        now += 1
+        reach.note("a", ok = false) // checked again, so "a" is now the newest
+        now += 1
+        reach.note("d", ok = true)
+
+        val scores = reach.scores()
+        assertEquals(setOf("a", "c", "d"), scores.keys)
+        assertEquals(1, scores.getValue("a").successes)
+        assertEquals(1, scores.getValue("a").failures)
     }
 
     @Test
