@@ -40,6 +40,11 @@ kotlin {
         withHostTest {}
     }
 
+    // No iOS app yet. These targets keep commonMain honest: CI compiles them and runs
+    // the common tests on a simulator, so a JVM-only call fails the build.
+    iosArm64()
+    iosSimulatorArm64()
+
     sourceSets {
         commonMain {
             kotlin.srcDir(generateAppVersion)
@@ -63,6 +68,10 @@ kotlin {
             implementation(libs.sqldelight.android)
             implementation(libs.koin.android)
             implementation(libs.coroutines.android)
+        }
+        iosMain.dependencies {
+            implementation(libs.ktor.client.darwin)
+            implementation(libs.sqldelight.native)
         }
         getByName("androidHostTest").dependencies {
             implementation(libs.sqldelight.jvm)

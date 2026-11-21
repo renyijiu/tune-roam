@@ -1,6 +1,7 @@
 package app.tuneroam.radio.data.repository
 
 import app.tuneroam.radio.core.epochMillis
+import app.tuneroam.radio.core.ioDispatcher
 import app.tuneroam.radio.core.runCancellable
 import app.tuneroam.radio.data.local.SnapshotStore
 import app.tuneroam.radio.data.remote.RadioBrowserClient
@@ -12,7 +13,6 @@ import app.tuneroam.radio.domain.model.Station
 import app.tuneroam.radio.domain.repository.ReachabilityRepository
 import app.tuneroam.radio.domain.repository.SnapshotRepository
 import app.tuneroam.radio.domain.repository.StationConnectivity
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -47,7 +47,7 @@ class RadioBrowserSnapshot(
         val fetched = runCancellable { fetch() }
         val stations = fetched.getOrElse { return SnapshotResult.Failed(it.toReason()) }
         if (stations.size < MIN_STATIONS) return SnapshotResult.TooFew(stations.size)
-        withContext(Dispatchers.IO) { store.replace(stations, clock()) }
+        withContext(ioDispatcher) { store.replace(stations, clock()) }
         probeSome(stations)
         SnapshotResult.Updated(stations.size)
     }

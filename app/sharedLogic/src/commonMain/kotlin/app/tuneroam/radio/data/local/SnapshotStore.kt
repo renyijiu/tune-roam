@@ -1,10 +1,10 @@
 package app.tuneroam.radio.data.local
 
 import app.tuneroam.radio.core.RadioJson
+import app.tuneroam.radio.core.ioDispatcher
 import app.tuneroam.radio.data.remote.BundledCatalog
 import app.tuneroam.radio.domain.model.SnapshotInfo
 import app.tuneroam.radio.domain.model.Station
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emitAll
@@ -31,7 +31,7 @@ class SnapshotStore(
     fun observe(): Flow<SnapshotInfo> =
         flow { emitAll(held) }
             .map { SnapshotInfo(downloadedAtMs = it.downloadedAtMs, stationCount = it.stations.size) }
-            .flowOn(Dispatchers.IO)
+            .flowOn(ioDispatcher)
 
     fun replace(stations: List<Station>, downloadedAtMs: Long) {
         database.transaction {

@@ -2,6 +2,7 @@ package app.tuneroam.radio.data.local
 
 import app.tuneroam.radio.core.RadioJson
 import app.tuneroam.radio.core.epochMillis
+import app.tuneroam.radio.core.ioDispatcher
 import app.tuneroam.radio.data.remote.MirrorMemory
 import app.tuneroam.radio.domain.catalog.ReachScore
 import app.tuneroam.radio.domain.model.AppSettings
@@ -17,7 +18,6 @@ import app.tuneroam.radio.domain.repository.TrackRepository
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.coroutines.mapToOneOrNull
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -82,18 +82,18 @@ class SqlFavoritesRepository(
     override fun observe(): Flow<List<Station>> =
         database.catalogQueries.selectAll()
             .asFlow()
-            .mapToList(Dispatchers.IO)
+            .mapToList(ioDispatcher)
             .map { rows -> rows.map { it.toStation() } }
 
-    override suspend fun list(): List<Station> = withContext(Dispatchers.IO) {
+    override suspend fun list(): List<Station> = withContext(ioDispatcher) {
         database.catalogQueries.selectAll().executeAsList().map { it.toStation() }
     }
 
-    override suspend fun isFavorite(stationUuid: String): Boolean = withContext(Dispatchers.IO) {
+    override suspend fun isFavorite(stationUuid: String): Boolean = withContext(ioDispatcher) {
         database.catalogQueries.selectById(stationUuid).executeAsOneOrNull() != null
     }
 
-    override suspend fun toggle(station: Station): Boolean = withContext(Dispatchers.IO) {
+    override suspend fun toggle(station: Station): Boolean = withContext(ioDispatcher) {
         val existing = database.catalogQueries.selectById(station.stationUuid).executeAsOneOrNull()
         if (existing == null) {
             insert(station, addedAt = clock())
@@ -105,14 +105,14 @@ class SqlFavoritesRepository(
     }
 
     override suspend fun remove(stationUuid: String) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             database.catalogQueries.deleteById(stationUuid)
         }
     }
 
     override suspend fun update(stations: List<Station>) {
         if (stations.isEmpty()) return
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             database.transaction {
                 stations.forEach { station ->
                     database.catalogQueries.updateFavorite(
@@ -187,15 +187,15 @@ class SqlReachabilityRepository(
     override fun observe(): Flow<Map<String, ReachScore>> =
         database.catalogQueries.selectReachability()
             .asFlow()
-            .mapToList(Dispatchers.IO)
+            .mapToList(ioDispatcher)
             .map { rows -> rows.associate { it.stationUuid to it.toScore() } }
 
-    override suspend fun scores(): Map<String, ReachScore> = withContext(Dispatchers.IO) {
+    override suspend fun scores(): Map<String, ReachScore> = withContext(ioDispatcher) {
         database.catalogQueries.selectReachability().executeAsList().associate { it.stationUuid to it.toScore() }
     }
 
     override suspend fun note(stationUuid: String, ok: Boolean) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             // Probes and playback can note the same station at once; keep the counters whole.
             database.transaction {
                 val existing = database.catalogQueries.selectReachabilityById(stationUuid).executeAsOneOrNull()
@@ -226,15 +226,15 @@ class SqlHistoryRepository(
     override fun observe(): Flow<List<Station>> =
         database.catalogQueries.selectHistory()
             .asFlow()
-            .mapToList(Dispatchers.IO)
+            .mapToList(ioDispatcher)
             .map { rows -> rows.mapNotNull { row -> row.payload.toStationOrNull() } }
 
-    override suspend fun latest(): Station? = withContext(Dispatchers.IO) {
+    override suspend fun latest(): Station? = withContext(ioDispatcher) {
         database.catalogQueries.selectLatestHistory().executeAsOneOrNull()?.payload?.toStationOrNull()
     }
 
     override suspend fun record(station: Station) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             database.transaction {
                 database.catalogQueries.insertHistory(
                     stationUuid = station.stationUuid,
@@ -254,15 +254,15 @@ class SqlSettingsRepository(
     override fun observe(): Flow<AppSettings> =
         database.catalogQueries.selectSetting(KEY)
             .asFlow()
-            .mapToOneOrNull(Dispatchers.IO)
+            .mapToOneOrNull(ioDispatcher)
             .map { it.toSettings() }
 
-    override suspend fun current(): AppSettings = withContext(Dispatchers.IO) {
+    override suspend fun current(): AppSettings = withContext(ioDispatcher) {
         database.catalogQueries.selectSetting(KEY).executeAsOneOrNull().toSettings()
     }
 
     override suspend fun update(transform: (AppSettings) -> AppSettings) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             database.transaction {
                 val now = database.catalogQueries.selectSetting(KEY).executeAsOneOrNull().toSettings()
                 database.catalogQueries.upsertSetting(KEY, RadioJson.encodeToString(transform(now)))
@@ -287,15 +287,15 @@ class SqlTrackRepository(
             SavedTrack(id = id, title = title, stationUuid = stationUuid, stationName = stationName, savedAt = savedAt)
         }
             .asFlow()
-            .mapToList(Dispatchers.IO)
+            .mapToList(ioDispatcher)
 
     override fun observeKeys(): Flow<Set<String>> =
         database.catalogQueries.selectTrackKeys()
             .asFlow()
-            .mapToList(Dispatchers.IO)
+            .mapToList(ioDispatcher)
             .map { it.toSet() }
 
-    override suspend fun toggle(title: String, station: Station): Boolean = withContext(Dispatchers.IO) {
+    override suspend fun toggle(title: String, station: Station): Boolean = withContext(ioDispatcher) {
         val key = TrackTitle.key(title)
         database.transactionWithResult {
             val saved = database.catalogQueries.selectTrackIdByKey(key).executeAsOneOrNull() != null
@@ -315,7 +315,7 @@ class SqlTrackRepository(
     }
 
     override suspend fun remove(id: Long) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             database.catalogQueries.deleteTrack(id)
         }
     }
