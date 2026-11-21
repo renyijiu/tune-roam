@@ -73,6 +73,15 @@ internal class FakeCatalog(
     override suspend fun byUuid(stationUuid: String): Station? =
         (similar + random + inCountry.flatten()).firstOrNull { it.stationUuid == stationUuid }
 
+    /** What [latest] answers; empty acts as an unreachable catalog. */
+    var live: List<Station> = emptyList()
+    val latestCalls = mutableListOf<List<String>>()
+
+    override suspend fun latest(stationUuids: List<String>): List<Station> {
+        latestCalls += stationUuids
+        return live.filter { it.stationUuid in stationUuids }
+    }
+
     override suspend fun registerClick(stationUuid: String) = Unit
 }
 
@@ -156,6 +165,11 @@ internal class FakeFavorites(saved: List<Station> = emptyList()) : FavoritesRepo
 
     override suspend fun remove(stationUuid: String) {
         state.value = state.value.filter { it.stationUuid != stationUuid }
+    }
+
+    override suspend fun update(stations: List<Station>) {
+        val newer = stations.associateBy { it.stationUuid }
+        state.value = state.value.map { newer[it.stationUuid] ?: it }
     }
 }
 

@@ -16,6 +16,7 @@ import app.tuneroam.radio.data.remote.RadioBrowserClient
 import app.tuneroam.radio.data.remote.ServerDirectory
 import app.tuneroam.radio.data.repository.OfflineFirstCatalog
 import app.tuneroam.radio.data.repository.RadioBrowserSnapshot
+import app.tuneroam.radio.domain.catalog.FavoritesRefresh
 import app.tuneroam.radio.domain.playback.PlaybackCoordinator
 import app.tuneroam.radio.domain.playback.RoamDeck
 import app.tuneroam.radio.domain.playback.SimilarStations
@@ -52,6 +53,7 @@ private val dataModule = module {
     single { SnapshotStore(get(), get()) }
     single<SnapshotRepository> { RadioBrowserSnapshot(get(), get(), get(), get()) }
     single<RadioCatalog> { OfflineFirstCatalog(get(), get(), FallbackCatalog(get<SnapshotStore>()::stations)) }
+    single { FavoritesRefresh(get(), get()) }
     single { PlaybackCoordinator() }
     single { SimilarStations(get(), get(), get()) }
     single { RoamDeck(get(), get(), get(), get()) }

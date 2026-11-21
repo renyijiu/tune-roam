@@ -105,6 +105,7 @@ scripts/             随包电台快照的生成脚本
 ### 续听、分享、曲目
 
 - `HistoryRepository.latest()` 取最后一座真正播出的台。冷启动时 `PlaybackCoordinator.restore()` 把它显示出来但不连接；已经有台在播时不生效。播放服务实现了 Media3 的 `onPlaybackResumption`，清单里声明了 `android.media.browse.MediaBrowserService`，系统媒体控件才能在应用不在运行时恢复播放。
+- 收藏存的是加入时那一刻的电台信息。打开收藏页时 `FavoritesRefresh` 用 `/json/stations/byuuid?uuids=…`（每次最多 100 个）取目录里的最新条目，更新流地址、图标、健康状态等，不改收藏顺序；应用运行期间最多每 6 小时一次，目录连不上时不计数。目录里已经删掉的台保留原来的副本，流地址多半还能用。
 - `StationLink` 生成和解析分享链接（只接受合法 uuid）。打开链接时先查收藏，再查 `/json/stations/byuuid/{uuid}`，最后查随包快照。
 - 迷你播放条、播放页和打开链接共用一个 Activity 范围的 `PlayerViewModel`，一处的提示另一处也能看到。
 - 曲名取自流里的原始元数据（`Player.Listener.onMetadata`，见 `StreamTitles.kt`）：ICY 的 `StreamTitle`，或 HLS 里 ID3 的标题加歌手。不能从 `player.mediaMetadata` 取：ExoPlayer 会用 `MediaItem` 自己的元数据覆盖流里的，而 `MediaItem` 的标题是台名。电台发空的 `StreamTitle` 时清掉曲名；换台时由 `PlaybackCoordinator.begin` 清掉。

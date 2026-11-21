@@ -110,6 +110,33 @@ class SqlFavoritesRepository(
         }
     }
 
+    override suspend fun update(stations: List<Station>) {
+        if (stations.isEmpty()) return
+        withContext(Dispatchers.IO) {
+            database.transaction {
+                stations.forEach { station ->
+                    database.catalogQueries.updateFavorite(
+                        stationUuid = station.stationUuid,
+                        name = station.name,
+                        streamUrl = station.url,
+                        resolvedUrl = station.urlResolved,
+                        homepage = station.homepage,
+                        favicon = station.favicon,
+                        tags = station.tags,
+                        country = station.country,
+                        countryCode = station.countryCode,
+                        languageName = station.language,
+                        codec = station.codec,
+                        bitrate = station.bitrate.toLong(),
+                        hls = if (station.hls) 1L else 0L,
+                        lastCheckOk = if (station.lastCheckOk) 1L else 0L,
+                        clickCount = station.clickCount.toLong(),
+                    )
+                }
+            }
+        }
+    }
+
     private fun insert(station: Station, addedAt: Long) {
         database.catalogQueries.insertFavorite(
             stationUuid = station.stationUuid,

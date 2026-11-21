@@ -64,6 +64,26 @@ INSERT OR REPLACE INTO favorite (
     :addedAt
 );
 
+-- Newer catalog data for a saved station. A row the listener removed meanwhile is not
+-- brought back, and addedAt (the list order) is kept.
+updateFavorite:
+UPDATE favorite
+SET name = :name,
+    streamUrl = :streamUrl,
+    resolvedUrl = :resolvedUrl,
+    homepage = :homepage,
+    favicon = :favicon,
+    tags = :tags,
+    country = :country,
+    countryCode = :countryCode,
+    languageName = :languageName,
+    codec = :codec,
+    bitrate = :bitrate,
+    hls = :hls,
+    lastCheckOk = :lastCheckOk,
+    clickCount = :clickCount
+WHERE stationUuid = :stationUuid;
+
 deleteById:
 DELETE FROM favorite
 WHERE stationUuid = :stationUuid;

@@ -33,6 +33,12 @@ interface RadioCatalog {
     /** One station by uuid, for a shared link. Null when neither the live catalog nor the snapshot has it. */
     suspend fun byUuid(stationUuid: String): Station?
 
+    /**
+     * The live catalog's current entries for these stations, to refresh saved copies.
+     * Stations the catalog no longer has are missing; empty when it cannot be reached.
+     */
+    suspend fun latest(stationUuids: List<String>): List<Station>
+
     suspend fun registerClick(stationUuid: String)
 }
 
@@ -68,6 +74,9 @@ interface FavoritesRepository {
     suspend fun toggle(station: Station): Boolean
 
     suspend fun remove(stationUuid: String)
+
+    /** Rewrites saved stations with newer catalog data. Stations not saved are ignored. */
+    suspend fun update(stations: List<Station>)
 }
 
 /**

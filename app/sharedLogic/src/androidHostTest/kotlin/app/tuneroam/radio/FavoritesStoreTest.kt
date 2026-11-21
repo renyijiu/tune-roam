@@ -38,6 +38,32 @@ class FavoritesStoreTest {
     }
 
     @Test
+    fun updateRewritesSavedStationsOnly() = runTest {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        TuneRoamDatabase.Schema.create(driver)
+        var now = 1_000L
+        val repository = SqlFavoritesRepository(TuneRoamDatabase(driver), clock = { now })
+        repository.toggle(station("1", "Night Desk"))
+        now = 2_000L
+        repository.toggle(station("2", "Day Desk"))
+
+        repository.update(
+            listOf(
+                station("1", "Night Desk FM").copy(urlResolved = "https://moved.test/1", lastCheckOk = false),
+                station("3", "Never saved"),
+            ),
+        )
+
+        val saved = repository.list()
+        // Order (addedAt) is kept, and the unsaved station is not added.
+        assertEquals(listOf("2", "1"), saved.map { it.stationUuid })
+        val night = saved.last()
+        assertEquals("Night Desk FM", night.name)
+        assertEquals("https://moved.test/1", night.urlResolved)
+        assertFalse(night.lastCheckOk)
+    }
+
+    @Test
     fun historyLatestIsTheMostRecentPlay() = runTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         TuneRoamDatabase.Schema.create(driver)

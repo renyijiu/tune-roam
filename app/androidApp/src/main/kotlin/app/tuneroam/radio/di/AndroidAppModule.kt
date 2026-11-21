@@ -38,7 +38,7 @@ val androidAppModule = module {
             commands = get(),
         )
     }
-    viewModel { FavoritesViewModel(get(), get(), get()) }
+    viewModel { FavoritesViewModel(get(), get(), get(), get()) }
     viewModel { TracksViewModel(get(), get()) }
     viewModel { SettingsViewModel(get(), get(), get()) }
     viewModel { PlayerViewModel(get(), get(), get(), get(), get(), get(), get(), get()) }
