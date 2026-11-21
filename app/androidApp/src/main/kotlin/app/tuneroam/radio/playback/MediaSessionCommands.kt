@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.core.content.ContextCompat
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import app.tuneroam.radio.core.runCancellable
 import app.tuneroam.radio.domain.model.Station
 import app.tuneroam.radio.domain.playback.PlaybackCommands
 import app.tuneroam.radio.domain.playback.StreamFallback
@@ -25,7 +26,7 @@ class MediaSessionCommands(
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
-    // Main thread only, like every command.
+    // Main thread only, like every command. Null after a failure or disconnect(); the next command connects.
     private var connection: Deferred<MediaController>? = connect()
 
     private fun controller(): Deferred<MediaController> = connection ?: connect().also { connection = it }
@@ -59,38 +60,49 @@ class MediaSessionCommands(
         }
     }
 
-    override fun play(station: Station) {
+    override fun play(station: Station) = send { mediaController ->
+        val first = StreamFallback.candidates(station.urlResolved, station.url).firstOrNull()
+        mediaController.setMediaItem(mediaItemFor(station, first))
+        mediaController.prepare()
+        mediaController.play()
+    }
+
+    override fun toggle() = send { mediaController ->
+        if (mediaController.isPlaying) mediaController.pause() else mediaController.play()
+    }
+
+    override fun pause() = send { it.pause() }
+
+    override fun next() = send { it.seekToNext() }
+
+    override fun previous() = send { it.seekToPrevious() }
+
+    private fun send(command: (MediaController) -> Unit) {
         scope.launch {
-            val mediaController = controller().await()
-            val first = StreamFallback.candidates(station.urlResolved, station.url).firstOrNull()
-            mediaController.setMediaItem(mediaItemFor(station, first))
-            mediaController.prepare()
-            mediaController.play()
+            connected()?.let(command)
         }
     }
 
-    override fun toggle() {
-        scope.launch {
-            val mediaController = controller().await()
-            if (mediaController.isPlaying) mediaController.pause() else mediaController.play()
+    /**
+     * A connected controller, connecting again when the last attempt failed or the
+     * session has gone away since. A failed connection is never kept: every command
+     * after it would fail too, and an exception here has no handler, so it would crash
+     * the app on each tap. Null when the service cannot be reached right now; the
+     * command is dropped and the next one tries again.
+     */
+    private suspend fun connected(): MediaController? {
+        repeat(CONNECT_ATTEMPTS) {
+            val pending = controller()
+            val mediaController = runCancellable { pending.await() }.getOrNull()
+            if (mediaController?.isConnected == true) return mediaController
+            if (connection === pending) connection = null
+            mediaController?.release()
         }
+        return null
     }
 
-    override fun pause() {
-        scope.launch {
-            controller().await().pause()
-        }
-    }
-
-    override fun next() {
-        scope.launch {
-            controller().await().seekToNext()
-        }
-    }
-
-    override fun previous() {
-        scope.launch {
-            controller().await().seekToPrevious()
-        }
+    private companion object {
+        /** One retry, for a session that went away between two commands. */
+        const val CONNECT_ATTEMPTS = 2
     }
 }

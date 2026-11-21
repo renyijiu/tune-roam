@@ -274,6 +274,11 @@ selectTrackKeys:
 SELECT titleKey
 FROM savedTrack;
 
+selectTrackIdByKey:
+SELECT id
+FROM savedTrack
+WHERE titleKey = :titleKey;
+
 insertTrack:
 INSERT OR IGNORE INTO savedTrack (
     title,

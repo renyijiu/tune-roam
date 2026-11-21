@@ -259,7 +259,7 @@ class SqlTrackRepository(
     override suspend fun toggle(title: String, station: Station): Boolean = withContext(Dispatchers.IO) {
         val key = TrackTitle.key(title)
         database.transactionWithResult {
-            val saved = key in database.catalogQueries.selectTrackKeys().executeAsList()
+            val saved = database.catalogQueries.selectTrackIdByKey(key).executeAsOneOrNull() != null
             if (saved) {
                 database.catalogQueries.deleteTrackByKey(key)
             } else {

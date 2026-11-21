@@ -23,8 +23,6 @@ kotlin {
             implementation(libs.coroutines.core)
             implementation(libs.serialization.json)
             implementation(libs.ktor.client.core)
-            implementation(libs.ktor.content.negotiation)
-            implementation(libs.ktor.serialization.json)
             implementation(libs.sqldelight.runtime)
             implementation(libs.sqldelight.coroutines)
             implementation(libs.koin.core)
