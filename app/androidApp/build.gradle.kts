@@ -35,7 +35,7 @@ android {
     defaultConfig {
         applicationId = "app.tuneroam.radio"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = providers.gradleProperty("tuneroam.versionCode").get().toInt()
         versionName = providers.gradleProperty("tuneroam.versionName").get()
     }
