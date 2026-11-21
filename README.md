@@ -107,6 +107,7 @@ scripts/             随包电台快照的生成脚本
 - `HistoryRepository.latest()` 取最后一座真正播出的台。冷启动时 `PlaybackCoordinator.restore()` 把它显示出来但不连接；已经有台在播时不生效。播放服务实现了 Media3 的 `onPlaybackResumption`，清单里声明了 `android.media.browse.MediaBrowserService`，系统媒体控件才能在应用不在运行时恢复播放。
 - `StationLink` 生成和解析分享链接（只接受合法 uuid）。打开链接时先查收藏，再查 `/json/stations/byuuid/{uuid}`，最后查随包快照。
 - 迷你播放条、播放页和打开链接共用一个 Activity 范围的 `PlayerViewModel`，一处的提示另一处也能看到。
+- 曲名取自流里的原始元数据（`Player.Listener.onMetadata`，见 `StreamTitles.kt`）：ICY 的 `StreamTitle`，或 HLS 里 ID3 的标题加歌手。不能从 `player.mediaMetadata` 取：ExoPlayer 会用 `MediaItem` 自己的元数据覆盖流里的，而 `MediaItem` 的标题是台名。电台发空的 `StreamTitle` 时清掉曲名；换台时由 `PlaybackCoordinator.begin` 清掉。
 - `TrackTitle` 按 ` - ` 拆出歌手和歌名；`titleKey` 是去掉多余空格、转小写后的曲名，表里唯一，所以同一首歌换个台也只存一次。`MusicService` 生成三家的网页搜索地址；装了对应应用并认领了域名时系统直接用应用打开（网易云的地址带 `#` 路由，通常在浏览器打开）。
 
 ### 本地数据
